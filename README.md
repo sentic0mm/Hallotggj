@@ -2,7 +2,7 @@ index.html ist die aktuelle file
 
 um die den gamble zu starten geht auf diese seite:
 
-https://sentic0mm.github.io/Hallotggj/index.html
+https://sentic0mm.github.io/Hallotggj/
 --------------------------------------------------
 <h2>⚠️Achtung</h2>
 
