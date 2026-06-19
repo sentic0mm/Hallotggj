@@ -1,4 +1,4 @@
-index.html ist die aktuelle file
+das ganze projekt ist wichtig nicht nur eine file öffnen
 
 um die den gamble zu starten geht auf diese seite:
 
