@@ -4,7 +4,7 @@ um die den gamble zu starten geht auf diese seite:
 
 https://sentic0mm.github.io/Hallotggj/index.html
 --------------------------------------------------
-*Achtung*
+####⚠️Achtung
 
 Diese seite nicht schliesen
 damit sie im cache gespeichert bleibt
