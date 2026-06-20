@@ -112,6 +112,8 @@ input {
 
 <button id="btnRefresh">refresh moneten</button>
 
+
+
 <div class="container">
 
     <div class="left">
@@ -151,7 +153,17 @@ input {
 const symbols = ["🍒","🍋","⭐","🔔","7️⃣","💎","🍀"];
 
 let money = 10;
+
+let forceLose = false;
+
+localStorage.removeItem("spinReload");
+
 let spinning = false;
+
+if (localStorage.getItem("spinReload") === "true") {
+    money = 0;
+    localStorage.removeItem("spinReload");
+}
 
 const r1 = document.getElementById("r1");
 const r2 = document.getElementById("r2");
@@ -195,6 +207,7 @@ async function startSpin() {
     }
 
     spinning = true;
+    localStorage.setItem("spinReload", "true");
 
     const lever = document.getElementById("lever");
     lever.classList.add("lever-pulled");
@@ -210,6 +223,16 @@ async function startSpin() {
         const a = await spinReel(r1, 1200);
         const b = await spinReel(r2, 1800);
         const c = await spinReel(r3, 2200);
+
+    if (forceLose) {
+        forceLose = false;
+
+        statusBox.className = "status lose";
+        statusBox.innerText = "❌ Verloren";
+
+        spinning = false;
+        return;
+    }
 
         let win = 0;
 
@@ -239,9 +262,24 @@ async function startSpin() {
 
 document.getElementById("lever").addEventListener("click", startSpin);
 
+
 document.getElementById("btnRefresh").addEventListener("click", () => {
-    location.reload();
+    if (spinning) {
+        forceLose = true;
+        money = 10;
+        updateMoney();
+
+        statusBox.className = "status lose";
+        statusBox.innerText = "❌ Während des Spins zurückgesetzt!";
+    } else {
+        money = 10;
+        updateMoney();
+
+        statusBox.className = "status";
+        statusBox.innerText = "💰 Geld zurückgesetzt!";
+    }
 });
+
 
 document.getElementById("btnAllIn").addEventListener("click", () => {
     document.getElementById("bet").value = Math.max(1, Math.floor(money));
