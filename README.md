@@ -9,5 +9,5 @@ https://sentic0mm.github.io/Slot-machine/
 Diese seite nicht schliesen
 damit sie im cache gespeichert bleibt
 dass heist das sie auch offline funktioniert aber
-sie kann wird nach einem neustart oder nach
+sie wird nach einem neustart oder nach
 einem bestimten zeitraum aus dem cache gelöscht
