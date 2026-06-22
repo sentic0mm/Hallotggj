@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 
 <style>
-   
+
 body {
     margin: 0;
     background: #1b1b1b;
@@ -123,8 +123,7 @@ input {
     cursor: pointer;
     transition: 0.2s;
     user-select: none;
-    display: inline-block;
-    max-width: 160px;
+    width: 160px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -133,6 +132,7 @@ input {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 6px;
 }
 
 .save-buttons button:hover,
@@ -155,8 +155,13 @@ input {
     cursor: pointer;
     transition: 0.2s;
     user-select: none;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: 220px;
     box-sizing: border-box;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 #btnReset:hover {
@@ -175,8 +180,13 @@ input {
     cursor: pointer;
     transition: 0.2s;
     user-select: none;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: 180px;
     box-sizing: border-box;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 #btnRefresh:hover {
@@ -185,15 +195,36 @@ input {
     color: #faefb8;
 }
 
+/* ── Sprach-Button ── */
+#btnLang {
+    background: #222;
+    color: white;
+    border: 1px solid #555;
+    padding: 12px 18px;
+    font-size: 15px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: 0.2s;
+    user-select: none;
+    display: inline-block;
+    box-sizing: border-box;
+    margin-left: 8px;
+}
+
+#btnLang:hover {
+    background: #333;
+    border-color: #aaa;
+}
+
 </style>
-   
 </head>
 
 <body>
 
-<button id="btnRefresh">refresh moneten</button>
-
-
+<button id="btnRefresh"><span class="btn-label">refresh moneten</span></button>
+<button id="btnLang">DE</button>
 
 <div class="container">
 
@@ -205,15 +236,15 @@ input {
 
     <div class="right">
 
-        <button id="btnReset">🗑 Reset (Cache leeren)</button>
+        <button id="btnReset"><span class="btn-icon">🗑</span><span class="btn-label">Reset (Cache leeren)</span></button>
 
         <div class="save-buttons">
-        <button id="btnExport">💾 Export Save</button>
+            <button id="btnExport"><span class="btn-icon">💾</span><span class="btn-label">Export Save</span></button>
             <label class="import-btn">
-             📂 Import Save
-        <input type="file" id="importFile" accept=".json">
+                <span class="btn-icon">📂</span><span class="btn-label">Import Save</span>
+                <input type="file" id="importFile" accept=".json">
             </label>
-    </div>
+        </div>
 
         <div class="money" id="money">Geld: 10.00$</div>
 
@@ -225,10 +256,10 @@ input {
 
         <div class="status" id="status">Hebel ziehen!</div>
 
-        <label>Einsatz</label>
+        <label id="labelBet">Einsatz</label>
         <input id="bet" type="number" value="1" min="1">
 
-        <label>Anzahl Spins</label>
+        <label id="labelSpins">Anzahl Spins</label>
         <input id="spinCount" type="number" value="1" min="1">
 
         <div class="buttons">
@@ -240,8 +271,105 @@ input {
 </div>
 
 <script>
-// -------von hier-------
-    async function sha256(text) {
+
+// ── Übersetzungen / Translations ──────────────────────────────────────────────
+const translations = {
+    de: {
+        moneyPrefix:      "Geld: ",
+        statusStart:      "Hebel ziehen!",
+        labelBet:         "Einsatz",
+        labelSpins:       "Anzahl Spins",
+        spinning:         "🎰 Dreht...",
+        jackpot:          "🎰 JACKPOT +",
+        win:              "✅ Gewonnen +",
+        lose:             "❌ Verloren",
+        noMoney:          "Kein Geld mehr!",
+        notEnoughSpin:    "Nicht genug Geld für weitere Spins!",
+        invalidInput:     "Ungültige Eingabe!",
+        resetDuring:      "❌ Während des Spins zurückgesetzt!",
+        resetDone:        "💰 Geld zurückgesetzt!",
+        cashOut:          "Ausgezahlt: ",
+        resetBtn:         "🗑 Reset (Cache leeren)",
+        refreshBtn:       "refresh moneten",
+        exportBtn:        "💾 Export Save",
+        importLabel:      "📂 Import Save",
+        resetConfirm1a:   "⚠️ ACHTUNG! ⚠️\n\nCache inhalt größe: ",
+        resetConfirm1b:   " KB\n\nDu bist dabei ALLE lokalen Daten zu löschen.\n\n👉 Es wird empfohlen vorher deinen Save zu exportieren!",
+        resetConfirm2:    "Bist du WIRKLICH sicher?\n\nDiese Aktion kann nicht rückgängig gemacht werden!",
+        cacheCleared:     "Cache gelöscht!",
+        cacheStatus:      "🗑 Daten zurückgesetzt!",
+        waitSpin:         "Bitte warte bis der Spin fertig ist!",
+        saveManipulated:  "❌ Save manipuliert!",
+        saveLoaded:       "✔ Save geladen!",
+        saveCorrupted:    "Save Datei wurde verändert oder ist beschädigt!"
+    },
+    en: {
+        moneyPrefix:      "Money: ",
+        statusStart:      "Pull the lever!",
+        labelBet:         "Bet",
+        labelSpins:       "Number of Spins",
+        spinning:         "🎰 Spinning...",
+        jackpot:          "🎰 JACKPOT +",
+        win:              "✅ Won +",
+        lose:             "❌ Lost",
+        noMoney:          "Not enough money!",
+        notEnoughSpin:    "Not enough money for more spins!",
+        invalidInput:     "Invalid input!",
+        resetDuring:      "❌ Reset during spin!",
+        resetDone:        "💰 Money reset!",
+        cashOut:          "Cashed out: ",
+        resetBtn:         "🗑 Reset (clear cache)",
+        refreshBtn:       "refresh money",
+        exportBtn:        "💾 Export Save",
+        importLabel:      "📂 Import Save",
+        resetConfirm1a:   "⚠️ WARNING! ⚠️\n\nCache size: ",
+        resetConfirm1b:   " KB\n\nYou are about to delete ALL local data.\n\n👉 It is recommended to export your save first!",
+        resetConfirm2:    "Are you REALLY sure?\n\nThis action cannot be undone!",
+        cacheCleared:     "Cache cleared!",
+        cacheStatus:      "🗑 Data reset!",
+        waitSpin:         "Please wait until the spin is finished!",
+        saveManipulated:  "❌ Save manipulated!",
+        saveLoaded:       "✔ Save loaded!",
+        saveCorrupted:    "Save file has been modified or is corrupted!"
+    }
+};
+
+let currentLang = localStorage.getItem("lang") || "de";
+
+function t(key) {
+    return translations[currentLang][key];
+}
+
+function applyLanguage() {
+    document.getElementById("btnLang").textContent   = currentLang.toUpperCase();
+    document.getElementById("labelBet").textContent  = t("labelBet");
+    document.getElementById("labelSpins").textContent = t("labelSpins");
+    document.querySelector("#btnReset .btn-label").textContent   = t("resetBtn").replace(/^🗑 /, "");
+    document.querySelector("#btnRefresh .btn-label").textContent = t("refreshBtn");
+    document.querySelector("#btnExport .btn-label").textContent  = "Export Save";
+    document.querySelector(".import-btn .btn-label").textContent = "Import Save";
+
+    updateMoney();
+
+    if (!spinning) {
+        statusBox.className = "status";
+        statusBox.innerText = t("statusStart");
+    }
+}
+
+function setLanguage(lang) {
+    currentLang = lang;
+    localStorage.setItem("lang", lang);
+    document.documentElement.lang = lang;
+    applyLanguage();
+}
+
+document.getElementById("btnLang").addEventListener("click", () => {
+    setLanguage(currentLang === "de" ? "en" : "de");
+});
+
+// ── Export / Import ───────────────────────────────────────────────────────────
+async function sha256(text) {
     const data = new TextEncoder().encode(text);
     const hashBuffer = await crypto.subtle.digest("SHA-256", data);
     return Array.from(new Uint8Array(hashBuffer))
@@ -250,63 +378,44 @@ input {
 }
 
 async function exportSave() {
-    const saveData = {
-        money: money
-    };
-
+    const saveData = { money };
     const json = JSON.stringify(saveData);
     const hash = await sha256(json);
-
-    const packageData = {
-        data: btoa(json),
-        hash: hash
-    };
-
+    const packageData = { data: btoa(json), hash };
     const blob = new Blob([JSON.stringify(packageData)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-
     const a = document.createElement("a");
     a.href = url;
     a.download = "slot-save.json";
     a.click();
-
     URL.revokeObjectURL(url);
 }
 
 async function importSave(file) {
     const text = await file.text();
     const packageData = JSON.parse(text);
-
     const json = atob(packageData.data);
     const hash = await sha256(json);
-
     if (hash !== packageData.hash) {
-        alert("Save Datei wurde verändert oder ist beschädigt!");
+        alert(t("saveCorrupted"));
         return;
     }
-
     const saveData = JSON.parse(json);
-
     money = saveData.money;
     updateMoney();
 }
-   // -------bis hier geht der export import teil-------
+
+// ── Spiellogik ────────────────────────────────────────────────────────────────
 const symbols = ["🍒","🍋","⭐","🔔","7️⃣","💎","🍀"];
 
 let money = 10;
-
 let savingLocked = false;
 
 const savedMoney = localStorage.getItem("money");
-
-if (savedMoney !== null) {
-    money = parseFloat(savedMoney);
-}
+if (savedMoney !== null) money = parseFloat(savedMoney);
 
 let forceLose = false;
-
 localStorage.removeItem("spinReload");
-
 let spinning = false;
 
 if (localStorage.getItem("spinReload") === "true") {
@@ -325,8 +434,7 @@ const statusBox = document.getElementById("status");
 
 function updateMoney() {
     document.getElementById("money").innerText =
-        "Geld: " + money.toFixed(2) + "$";
-
+        t("moneyPrefix") + money.toFixed(2) + "$";
     saveMoney();
 }
 
@@ -339,7 +447,6 @@ function spinReel(reel, duration) {
         let interval = setInterval(() => {
             reel.innerText = randomSymbol();
         }, 80);
-
         setTimeout(() => {
             clearInterval(interval);
             const final = randomSymbol();
@@ -351,21 +458,20 @@ function spinReel(reel, duration) {
 
 async function startSpin() {
     updateUIState();
-
     if (spinning) return;
 
-    let bet = parseFloat(document.getElementById("bet").value);
+    let bet   = parseFloat(document.getElementById("bet").value);
     let spins = parseInt(document.getElementById("spinCount").value);
 
     if (isNaN(bet) || isNaN(spins)) return;
 
     if (bet <= 0 || spins <= 0) {
-        statusBox.innerText = "Ungültige Eingabe!";
+        statusBox.innerText = t("invalidInput");
         return;
     }
 
     if (money < bet) {
-        statusBox.innerText = "Kein Geld mehr!";
+        statusBox.innerText = t("noMoney");
         return;
     }
 
@@ -378,17 +484,17 @@ async function startSpin() {
     setTimeout(() => lever.classList.remove("lever-pulled"), 250);
 
     for (let i = 0; i < spins; i++) {
-
         if (money < bet) {
             statusBox.className = "status lose";
-            statusBox.innerText = "Nicht genug Geld für weitere Spins!";
+            statusBox.innerText = t("notEnoughSpin");
             break;
         }
 
         money -= bet;
         updateMoney();
 
-        statusBox.innerText = "🎰 Dreht...";
+        statusBox.className = "status";
+        statusBox.innerText = t("spinning");
 
         const a = await spinReel(r1, 1200);
         const b = await spinReel(r2, 1800);
@@ -396,10 +502,8 @@ async function startSpin() {
 
         if (forceLose) {
             forceLose = false;
-
             statusBox.className = "status lose";
-            statusBox.innerText = "❌ Verloren";
-
+            statusBox.innerText = t("lose");
             spinning = false;
             savingLocked = false;
             updateUIState();
@@ -411,16 +515,14 @@ async function startSpin() {
         if (a === b && b === c) {
             win = bet * 10;
             statusBox.className = "status jackpot";
-            statusBox.innerText = "🎰 JACKPOT +" + win.toFixed(2) + "$";
-        }
-        else if (a === b || b === c || a === c) {
+            statusBox.innerText = t("jackpot") + win.toFixed(2) + "$";
+        } else if (a === b || b === c || a === c) {
             win = bet * 2;
             statusBox.className = "status win";
-            statusBox.innerText = "✅ Gewonnen +" + win.toFixed(2) + "$";
-        }
-        else {
+            statusBox.innerText = t("win") + win.toFixed(2) + "$";
+        } else {
             statusBox.className = "status lose";
-            statusBox.innerText = "❌ Verloren";
+            statusBox.innerText = t("lose");
         }
 
         money += win;
@@ -430,30 +532,26 @@ async function startSpin() {
     }
 
     spinning = false;
-    savingLocked = false; // 🔓 Save wieder frei
+    savingLocked = false;
     updateUIState();
 }
 
 document.getElementById("lever").addEventListener("click", startSpin);
-
 
 document.getElementById("btnRefresh").addEventListener("click", () => {
     if (spinning) {
         forceLose = true;
         money = 10;
         updateMoney();
-
         statusBox.className = "status lose";
-        statusBox.innerText = "❌ Während des Spins zurückgesetzt!";
+        statusBox.innerText = t("resetDuring");
     } else {
         money = 10;
         updateMoney();
-
         statusBox.className = "status";
-        statusBox.innerText = "💰 Geld zurückgesetzt!";
+        statusBox.innerText = t("resetDone");
     }
 });
-
 
 document.getElementById("btnAllIn").addEventListener("click", () => {
     document.getElementById("bet").value = Math.max(1, Math.floor(money));
@@ -461,89 +559,68 @@ document.getElementById("btnAllIn").addEventListener("click", () => {
 
 document.getElementById("btnCashOut").addEventListener("click", () => {
     statusBox.className = "status";
-    statusBox.innerText = "Ausgezahlt: " + money.toFixed(2) + "$";
+    statusBox.innerText = t("cashOut") + money.toFixed(2) + "$";
 });
-
-updateMoney();
-
-if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js");
-}
 
 document.getElementById("btnExport").addEventListener("click", exportSave);
 
 document.getElementById("importFile").addEventListener("change", async (e) => {
     if (spinning || savingLocked) {
-        alert("Bitte warte bis der Spin fertig ist!");
+        alert(t("waitSpin"));
         return;
     }
-
     savingLocked = true;
-
     const file = e.target.files[0];
-    if (!file) {
-        savingLocked = false;
-        return;
-    }
+    if (!file) { savingLocked = false; return; }
 
     const text = await file.text();
     const raw = JSON.parse(text);
-
     const json = atob(raw.data);
     const hash = await sha256(json);
 
     if (hash !== raw.hash) {
-        alert("❌ Save manipuliert!");
+        alert(t("saveManipulated"));
         savingLocked = false;
         return;
     }
 
     const saveData = JSON.parse(json);
-
     money = saveData.money;
     updateMoney();
-
-    alert("✔ Save geladen!");
-
+    alert(t("saveLoaded"));
     savingLocked = false;
 });
 
 function updateUIState() {
     const locked = spinning || savingLocked;
-
     document.getElementById("btnExport").disabled = locked;
     document.getElementById("importFile").disabled = locked;
 }
 
 document.getElementById("btnReset").addEventListener("click", () => {
-
     const confirm1 = confirm(
-        "⚠️ ACHTUNG! ⚠️\n\n"
-        + "Cache inhalt größe: " + (localStorage.length * 2) + " KB\n\n" +
-        "Du bist dabei ALLE lokalen Daten zu löschen.\n\n" +
-        "👉 Es wird empfohlen vorher deinen Save zu exportieren!"
+        t("resetConfirm1a") + (localStorage.length * 2) + t("resetConfirm1b")
     );
-
     if (!confirm1) return;
 
-    const confirm2 = confirm(
-        "Bist du WIRKLICH sicher?\n\n" +
-        "Diese Aktion kann nicht rückgängig gemacht werden!"
-    );
-
+    const confirm2 = confirm(t("resetConfirm2"));
     if (!confirm2) return;
 
-    // 🔥 alles löschen
     localStorage.clear();
-
     money = 10;
     updateMoney();
-
     statusBox.className = "status lose";
-    statusBox.innerText = "🗑 Daten zurückgesetzt!";
-
-    alert("Cache gelöscht!");
+    statusBox.innerText = t("cacheStatus");
+    alert(t("cacheCleared"));
 });
+
+if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("./sw.js");
+}
+
+// Sprache beim Start anwenden
+applyLanguage();
+
 </script>
 
 </body>
