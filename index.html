@@ -105,6 +105,46 @@ input {
 .win { color: #00ff66; }
 .lose { color: #ff5555; }
 .jackpot { color: gold; }
+
+.save-buttons {
+    margin-top: 0;
+    position: relative;
+    top: -10px;
+}
+
+.save-buttons button,
+.import-btn {
+    background: #222;
+    color: white;
+    border: 1px solid #444;
+    padding: 12px 15px;
+    font-size: 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: 0.2s;
+    user-select: none;
+    display: inline-block;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    box-sizing: border-box;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.save-buttons button:hover,
+.import-btn:hover {
+    background: #333;
+    transform: scale(1.05);
+}
+
+.import-btn input {
+    display: none;
+}
+
 </style>
 </head>
 
@@ -123,6 +163,14 @@ input {
     </div>
 
     <div class="right">
+
+        <div class="save-buttons">
+        <button id="btnExport">💾 Export Save</button>
+            <label class="import-btn">
+             📂 Import Save
+        <input type="file" id="importFile" accept=".json">
+            </label>
+    </div>
 
         <div class="money" id="money">Geld: 10.00$</div>
 
@@ -149,10 +197,66 @@ input {
 </div>
 
 <script>
-   
+// -------von hier-------
+    async function sha256(text) {
+    const data = new TextEncoder().encode(text);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(hashBuffer))
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("");
+}
+
+async function exportSave() {
+    const saveData = {
+        money: money
+    };
+
+    const json = JSON.stringify(saveData);
+    const hash = await sha256(json);
+
+    const packageData = {
+        data: btoa(json),
+        hash: hash
+    };
+
+    const blob = new Blob([JSON.stringify(packageData)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "slot-save.json";
+    a.click();
+
+    URL.revokeObjectURL(url);
+}
+
+async function importSave(file) {
+    const text = await file.text();
+    const packageData = JSON.parse(text);
+
+    const json = atob(packageData.data);
+    const hash = await sha256(json);
+
+    if (hash !== packageData.hash) {
+        alert("Save Datei wurde verändert oder ist beschädigt!");
+        return;
+    }
+
+    const saveData = JSON.parse(json);
+
+    money = saveData.money;
+    updateMoney();
+}
+   // -------bis hier geht der export import teil-------
 const symbols = ["🍒","🍋","⭐","🔔","7️⃣","💎","🍀"];
 
 let money = 10;
+
+const savedMoney = localStorage.getItem("money");
+
+if (savedMoney !== null) {
+    money = parseFloat(savedMoney);
+}
 
 let forceLose = false;
 
@@ -165,6 +269,10 @@ if (localStorage.getItem("spinReload") === "true") {
     localStorage.removeItem("spinReload");
 }
 
+function saveMoney() {
+    localStorage.setItem("money", money);
+}
+
 const r1 = document.getElementById("r1");
 const r2 = document.getElementById("r2");
 const r3 = document.getElementById("r3");
@@ -173,6 +281,8 @@ const statusBox = document.getElementById("status");
 function updateMoney() {
     document.getElementById("money").innerText =
         "Geld: " + money.toFixed(2) + "$";
+
+    saveMoney();
 }
 
 function randomSymbol() {
@@ -201,10 +311,16 @@ async function startSpin() {
     let spins = parseInt(document.getElementById("spinCount").value);
 
     if (isNaN(bet) || isNaN(spins)) return;
+
+    if (bet <= 0 || spins <= 0) {
+    statusBox.innerText = "Ungültige Eingabe!";
+    return;
+}
+
     if (money < bet) {
-        statusBox.innerText = "Kein Geld mehr!";
-        return;
-    }
+    statusBox.innerText = "Kein Geld mehr!";
+    return;
+}
 
     spinning = true;
     localStorage.setItem("spinReload", "true");
@@ -214,6 +330,12 @@ async function startSpin() {
     setTimeout(() => lever.classList.remove("lever-pulled"), 250);
 
     for (let i = 0; i < spins; i++) {
+
+    if (money < bet) {
+        statusBox.className = "status lose";
+        statusBox.innerText = "Nicht genug Geld für weitere Spins!";
+        break;
+    }
 
         money -= bet;
         updateMoney();
@@ -295,7 +417,35 @@ updateMoney();
 if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./sw.js");
 }
+
+document.getElementById("btnExport").addEventListener("click", exportSave);
+
+document.getElementById("importFile").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const text = await file.text();
+    const raw = JSON.parse(text);
+
+    const json = atob(raw.data);
+    const hash = await sha256(json);
+
+    if (hash !== raw.hash) {
+        alert("❌ Save wurde verändert oder ist kaputt!");
+        return;
+    }
+
+    const saveData = JSON.parse(json);
+
+    money = saveData.money;
+    updateMoney();
+
+    
+
+    alert("✔ Save geladen!");
+});
 </script>
 
 </body>
 </html>
+
