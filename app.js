@@ -384,12 +384,19 @@ async function doSpin() {
 
 function setMyStatus(text) { $("my-status").textContent = text; }
 
+async function sha256(text) {
+  const data = new TextEncoder().encode(text);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
 // ---------------------------------------------------------------
 // Solo-Modus (kein Firebase, rein lokal, klassisches Design)
 // ---------------------------------------------------------------
 const solo = {
   money: parseFloat(localStorage.getItem("solo_money")) || 10,
   spinning: false,
+  easyMode: false,
 };
 
 function soloSaveMoney() { localStorage.setItem("solo_money", solo.money); }
@@ -397,6 +404,25 @@ function soloSaveMoney() { localStorage.setItem("solo_money", solo.money); }
 function soloUpdateMoney() {
   $("solo-money").textContent = "Geld: " + solo.money.toFixed(2) + "$";
   soloSaveMoney();
+}
+
+// Erzeugt drei gleiche / zwei gleiche Symbole (= Gewinn) - für Easy Mode
+function makeWinTriple(jackpot) {
+  const x = randomSymbol();
+  if (jackpot) return [x, x, x];
+  let y = randomSymbol();
+  while (y === x) y = randomSymbol();
+  return [x, x, y];
+}
+
+// Erzeugt drei unterschiedliche Symbole (= Verlust) - für Easy Mode
+function makeLoseTriple() {
+  const x = randomSymbol();
+  let y = randomSymbol();
+  while (y === x) y = randomSymbol();
+  let z = randomSymbol();
+  while (z === x || z === y) z = randomSymbol();
+  return [x, y, z];
 }
 
 async function soloSpin() {
@@ -427,9 +453,19 @@ async function soloSpin() {
     soloUpdateMoney();
     $("solo-status").textContent = "🎰 Dreht…";
 
-    const a = await animateReel($("solo-r1"), 1200);
-    const b = await animateReel($("solo-r2"), 1800);
-    const c = await animateReel($("solo-r3"), 2200);
+    let a = await animateReel($("solo-r1"), 1200);
+    let b = await animateReel($("solo-r2"), 1800);
+    let c = await animateReel($("solo-r3"), 2200);
+
+    // Easy Mode: Ergebnis auf 60% Gewinn / 40% Verlust setzen
+    if (solo.easyMode) {
+      const roll = Math.random();
+      const triple = roll < 0.6 ? makeWinTriple(roll < 0.06) : makeLoseTriple();
+      a = triple[0]; b = triple[1]; c = triple[2];
+      $("solo-r1").textContent = a;
+      $("solo-r2").textContent = b;
+      $("solo-r3").textContent = c;
+    }
 
     let win = 0;
     if (a === b && b === c) {
@@ -467,6 +503,97 @@ $("solo-btn-reset").addEventListener("click", () => {
   soloUpdateMoney();
   $("solo-status").className = "status";
   $("solo-status").textContent = "💰 Zurückgesetzt!";
+});
+
+// "refresh moneten" - Geld sofort auf 10$ zurück (auch mitten im Spin)
+$("solo-btn-refresh").addEventListener("click", () => {
+  solo.money = 10;
+  soloUpdateMoney();
+  $("solo-status").className = "status";
+  $("solo-status").textContent = "💰 Geld zurückgesetzt!";
+});
+
+// Easy Mode: 60% Gewinn / 40% Verlust, Startgeld 100$
+$("solo-btn-easy").addEventListener("click", () => {
+  if (solo.spinning) return;
+  solo.easyMode = !solo.easyMode;
+  const btn = $("solo-btn-easy");
+
+  if (solo.easyMode) {
+    solo.money = 100;
+    soloUpdateMoney();
+    btn.classList.add("easy-active");
+    btn.textContent = "easy mode: AN";
+    $("solo-status").className = "status win";
+    $("solo-status").textContent = "🟢 Easy Mode an (60% Gewinn) – 100.00$ Startgeld!";
+  } else {
+    btn.classList.remove("easy-active");
+    btn.textContent = "easy mode";
+    $("solo-status").className = "status";
+    $("solo-status").textContent = "⚪ Easy Mode aus";
+  }
+});
+
+// Reset (Cache leeren) - löscht ALLE lokalen Daten, doppelte Bestätigung
+$("solo-btn-reset-cache").addEventListener("click", () => {
+  const c1 = confirm(
+    "⚠️ ACHTUNG! ⚠️\n\n" +
+    "Cache Inhalt Größe: " + (localStorage.length * 2) + " KB\n\n" +
+    "Du bist dabei ALLE lokalen Daten zu löschen.\n\n" +
+    "👉 Es wird empfohlen vorher deinen Save zu exportieren!"
+  );
+  if (!c1) return;
+
+  const c2 = confirm("Bist du WIRKLICH sicher?\n\nDiese Aktion kann nicht rückgängig gemacht werden!");
+  if (!c2) return;
+
+  localStorage.clear();
+  solo.money = 10;
+  soloUpdateMoney();
+  $("solo-status").className = "status lose";
+  $("solo-status").textContent = "🗑 Daten zurückgesetzt!";
+  alert("Cache gelöscht!");
+});
+
+// Export Save
+$("solo-btn-export").addEventListener("click", async () => {
+  const saveData = { money: solo.money };
+  const json = JSON.stringify(saveData);
+  const hash = await sha256(json);
+  const packageData = { data: btoa(json), hash };
+
+  const blob = new Blob([JSON.stringify(packageData)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "slot-save.json";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// Import Save
+$("solo-import-file").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const packageData = JSON.parse(text);
+    const json = atob(packageData.data);
+    const hash = await sha256(json);
+
+    if (hash !== packageData.hash) {
+      alert("❌ Save Datei wurde verändert oder ist beschädigt!");
+      return;
+    }
+
+    const saveData = JSON.parse(json);
+    solo.money = saveData.money;
+    soloUpdateMoney();
+    alert("✔ Save geladen!");
+  } catch (err) {
+    alert("❌ Ungültige Save-Datei.");
+  }
 });
 
 $("btn-goto-solo").addEventListener("click", () => {
@@ -600,3 +727,4 @@ $("btn-spin").addEventListener("click", doSpin);
 
   showScreen("home");
 })();
+
