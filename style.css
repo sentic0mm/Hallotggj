@@ -1,0 +1,184 @@
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #1b1b1b;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+.hidden { display: none !important; }
+
+.screen {
+  min-height: 100vh;
+  padding: 30px;
+}
+
+h1, h2 { margin-top: 0; }
+
+label { display: block; margin-top: 14px; margin-bottom: 4px; }
+
+input[type="text"], input[type="password"], input[type="number"] {
+  width: 100%;
+  max-width: 320px;
+  padding: 10px;
+  font-size: 16px;
+  background: #222;
+  border: 1px solid #444;
+  color: white;
+  border-radius: 8px;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-size: 16px;
+  background: #333;
+  color: white;
+  transition: 0.15s;
+}
+button:hover { background: #444; }
+
+.btn-primary { background: #1a5c2a; margin-top: 22px; }
+.btn-primary:hover { background: #1f7534; }
+
+.btn-danger { background: #5c1a1a; }
+.btn-danger:hover { background: #7a2323; }
+
+.btn-back { margin-bottom: 20px; background: #222; }
+
+.menu-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 320px;
+  margin-top: 30px;
+}
+
+.public-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #222;
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  max-width: 500px;
+}
+
+/* ------------------- Game screen ------------------- */
+
+.game-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  background: #111;
+  font-size: 15px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.topbar-right { display: flex; gap: 10px; }
+
+#countdown {
+  margin-left: 14px;
+  font-weight: bold;
+  color: gold;
+}
+
+.winner-box {
+  text-align: center;
+  padding: 16px;
+  font-size: 22px;
+  background: #2a2200;
+  color: gold;
+  border-bottom: 2px solid gold;
+}
+
+.player-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  padding: 16px;
+}
+
+/* Eigene Kachel: fix oben links via order + Grid-Reihenfolge (prepend im JS) */
+.tile {
+  background: #222;
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+  position: relative;
+  border: 2px solid #333;
+}
+
+.tile-me {
+  border-color: gold;
+  background: #262010;
+  order: -1;
+}
+
+.tile-aborted { opacity: 0.5; }
+
+.tile-name {
+  font-weight: bold;
+  margin-bottom: 6px;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tile-reels {
+  font-size: 26px;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.tile-money { font-size: 16px; }
+
+.tile-profit { font-size: 13px; margin-top: 2px; }
+.profit-pos { color: #00ff66; }
+.profit-neg { color: #ff5555; }
+
+.tile-tag {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 10px;
+  background: #5c1a1a;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.my-controls {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #111;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.my-controls input {
+  width: 90px;
+}
+
+.my-status {
+  font-size: 15px;
+  min-width: 120px;
+}
+
+@media (max-width: 600px) {
+  .player-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+  .screen { padding: 16px; }
+}

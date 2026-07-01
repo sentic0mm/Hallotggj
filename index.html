@@ -3,664 +3,98 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>gamblen ist toll</title>
-
+<title>gamblen ist toll - Multiplayer</title>
 <link rel="manifest" href="manifest.json">
-
-<style>
-
-body {
-    margin: 0;
-    background: #1b1b1b;
-    color: white;
-    font-family: Arial, sans-serif;
-}
-
-.container {
-    display: flex;
-    min-height: 100vh;
-}
-
-.left {
-    width: 180px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: #111;
-}
-
-#lever {
-    width: 120px;
-    height: 260px;
-    font-size: 26px;
-    cursor: pointer;
-    border: none;
-    border-radius: 15px;
-    background: #444;
-    color: white;
-    transition: transform .25s;
-}
-
-.lever-pulled {
-    transform: rotate(25deg);
-}
-
-.right {
-    flex: 1;
-    padding: 30px;
-}
-
-.money {
-    font-size: 38px;
-    margin-bottom: 20px;
-}
-
-.reels {
-    display: flex;
-    gap: 20px;
-    margin: 30px 0;
-}
-
-.reel {
-    width: 130px;
-    height: 130px;
-    background: white;
-    color: black;
-    font-size: 70px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 15px;
-    box-shadow: 0 0 15px #000;
-}
-
-.status {
-    font-size: 28px;
-    min-height: 40px;
-    margin-bottom: 20px;
-}
-
-label {
-    display: block;
-    margin-top: 15px;
-}
-
-input {
-    width: 200px;
-    padding: 10px;
-    font-size: 18px;
-}
-
-.buttons {
-    margin-top: 25px;
-}
-
-.buttons button {
-    padding: 12px 20px;
-    font-size: 18px;
-    margin-right: 10px;
-    cursor: pointer;
-}
-
-.win { color: #00ff66; }
-.lose { color: #ff5555; }
-.jackpot { color: gold; }
-
-.save-buttons {
-    margin-top: 0;
-    position: relative;
-    top: -10px;
-}
-
-.save-buttons button,
-.import-btn {
-    background: #222;
-    color: white;
-    border: 1px solid #444;
-    padding: 12px 15px;
-    font-size: 16px;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: 0.2s;
-    user-select: none;
-    display: inline-block;
-    max-width: 160px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    box-sizing: border-box;
-    height: 44px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.save-buttons button:hover,
-.import-btn:hover {
-    background: #333;
-    transform: scale(1.05);
-}
-
-.import-btn input {
-    display: none;
-}
-
-#btnReset {
-    background: #222;
-    color: white;
-    border: 1px solid #444;
-    padding: 12px 15px;
-    font-size: 16px;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: 0.2s;
-    user-select: none;
-    display: inline-block;
-    box-sizing: border-box;
-}
-
-#btnReset:hover {
-    background: #400000;
-    color: #ffcccc;
-    border-color: #ff0000;
-}
-
-#btnRefresh {
-    background: #222;
-    color: white;
-    border: 1px solid #444;
-    padding: 12px 15px;
-    font-size: 16px;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: 0.2s;
-    user-select: none;
-    display: inline-block;
-    box-sizing: border-box;
-}
-
-#btnRefresh:hover {
-    background: #3a3300;
-    border-color: #ffd400;
-    color: #faefb8;
-}
-
-#btnEasy {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    z-index: 100;
-    background: #222;
-    color: white;
-    border: 1px solid #444;
-    padding: 12px 15px;
-    font-size: 16px;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: 0.2s;
-    user-select: none;
-    display: inline-block;
-    box-sizing: border-box;
-}
-
-#btnEasy:hover {
-    background: #333;
-    transform: scale(1.05);
-}
-
-#btnEasy.easy-active {
-    background: #06351b;
-    border-color: #00ff66;
-    color: #b8ffd2;
-}
-
-</style>
-
+<link rel="stylesheet" href="style.css">
 </head>
-
 <body>
 
-<button id="btnRefresh">refresh moneten</button>
-
-<button id="btnEasy">easy mode</button>
-
-
-
-<div class="container">
-
-    <div class="left">
-        <button id="lever">
-            🔴<br>│<br>│<br>│<br>■■■
-        </button>
-    </div>
-
-    <div class="right">
-
-        <button id="btnReset">🗑 Reset (Cache leeren)</button>
-
-        <div class="save-buttons">
-        <button id="btnExport">💾 Export Save</button>
-            <label class="import-btn">
-             📂 Import Save
-        <input type="file" id="importFile" accept=".json">
-            </label>
-    </div>
-
-        <div class="money" id="money">Geld: 10.00$</div>
-
-        <div class="reels">
-            <div class="reel" id="r1">🍒</div>
-            <div class="reel" id="r2">🍋</div>
-            <div class="reel" id="r3">⭐</div>
-        </div>
-
-        <div class="status" id="status">Hebel ziehen!</div>
-
-        <label>Einsatz</label>
-        <input id="bet" type="number" value="1" min="1">
-
-        <label>Anzahl Spins</label>
-        <input id="spinCount" type="number" value="1" min="1">
-
-        <div class="buttons">
-            <button id="btnAllIn">ALL IN</button>
-            <button id="btnCashOut">CASH OUT</button>
-        </div>
-
-    </div>
+<!-- HOME -->
+<div id="screen-home" class="screen">
+  <h1>🎰 Gamblen ist toll</h1>
+  <div class="menu-buttons">
+    <button id="btn-goto-create">Lobby erstellen</button>
+    <button id="btn-goto-join">Lobby beitreten (Code)</button>
+    <button id="btn-goto-public">Öffentliche Lobbys</button>
+  </div>
 </div>
 
-<script>
-// -------von hier-------
-    async function sha256(text) {
-    const data = new TextEncoder().encode(text);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-    return Array.from(new Uint8Array(hashBuffer))
-        .map(b => b.toString(16).padStart(2, "0"))
-        .join("");
-}
-
-async function exportSave() {
-    const saveData = {
-        money: money
-    };
-
-    const json = JSON.stringify(saveData);
-    const hash = await sha256(json);
-
-    const packageData = {
-        data: btoa(json),
-        hash: hash
-    };
-
-    const blob = new Blob([JSON.stringify(packageData)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "slot-save.json";
-    a.click();
-
-    URL.revokeObjectURL(url);
-}
-
-async function importSave(file) {
-    const text = await file.text();
-    const packageData = JSON.parse(text);
-
-    const json = atob(packageData.data);
-    const hash = await sha256(json);
-
-    if (hash !== packageData.hash) {
-        alert("Save Datei wurde verändert oder ist beschädigt!");
-        return;
-    }
-
-    const saveData = JSON.parse(json);
-
-    money = saveData.money;
-    updateMoney();
-}
-   // -------bis hier geht der export import teil-------
-const symbols = ["🍒","🍋","⭐","🔔","7️⃣","💎","🍀"];
-
-let money = 10;
-
-let savingLocked = false;
-
-// Easy Mode: 60% Gewinn / 40% Verlust
-let easyMode = false;
-
-const savedMoney = localStorage.getItem("money");
-
-if (savedMoney !== null) {
-    money = parseFloat(savedMoney);
-}
-
-let forceLose = false;
-
-localStorage.removeItem("spinReload");
-
-let spinning = false;
-
-if (localStorage.getItem("spinReload") === "true") {
-    money = 0;
-    localStorage.removeItem("spinReload");
-}
-
-function saveMoney() {
-    localStorage.setItem("money", money);
-}
-
-const r1 = document.getElementById("r1");
-const r2 = document.getElementById("r2");
-const r3 = document.getElementById("r3");
-const statusBox = document.getElementById("status");
-
-function updateMoney() {
-    document.getElementById("money").innerText =
-        "Geld: " + money.toFixed(2) + "$";
-
-    saveMoney();
-}
-
-function randomSymbol() {
-    return symbols[Math.floor(Math.random() * symbols.length)];
-}
-
-// Erzeugt drei gleiche / zwei gleiche Symbole (= Gewinn)
-function makeWinTriple(jackpot) {
-    const x = randomSymbol();
-    if (jackpot) return [x, x, x];
-
-    let y = randomSymbol();
-    while (y === x) y = randomSymbol();
-
-    return [x, x, y]; // zwei gleiche -> Gewinn (bet * 2)
-}
-
-// Erzeugt drei unterschiedliche Symbole (= Verlust)
-function makeLoseTriple() {
-    const x = randomSymbol();
-
-    let y = randomSymbol();
-    while (y === x) y = randomSymbol();
-
-    let z = randomSymbol();
-    while (z === x || z === y) z = randomSymbol();
-
-    return [x, y, z];
-}
-
-function spinReel(reel, duration) {
-    return new Promise(resolve => {
-        let interval = setInterval(() => {
-            reel.innerText = randomSymbol();
-        }, 80);
-
-        setTimeout(() => {
-            clearInterval(interval);
-            const final = randomSymbol();
-            reel.innerText = final;
-            resolve(final);
-        }, duration);
-    });
-}
-
-async function startSpin() {
-    updateUIState();
-
-    if (spinning) return;
-
-    let bet = parseFloat(document.getElementById("bet").value);
-    let spins = parseInt(document.getElementById("spinCount").value);
-
-    if (isNaN(bet) || isNaN(spins)) return;
-
-    if (bet <= 0 || spins <= 0) {
-        statusBox.innerText = "Ungültige Eingabe!";
-        return;
-    }
-
-    if (money < bet) {
-        statusBox.innerText = "Kein Geld mehr!";
-        return;
-    }
-
-    spinning = true;
-    savingLocked = true;
-    updateUIState();
-
-    const lever = document.getElementById("lever");
-    lever.classList.add("lever-pulled");
-    setTimeout(() => lever.classList.remove("lever-pulled"), 250);
-
-    for (let i = 0; i < spins; i++) {
-
-        if (money < bet) {
-            statusBox.className = "status lose";
-            statusBox.innerText = "Nicht genug Geld für weitere Spins!";
-            break;
-        }
-
-        money -= bet;
-        updateMoney();
-
-        statusBox.innerText = "🎰 Dreht...";
-
-        let a = await spinReel(r1, 1200);
-        let b = await spinReel(r2, 1800);
-        let c = await spinReel(r3, 2200);
-
-        // Easy Mode: Ergebnis auf 60% Gewinn / 40% Verlust setzen
-        if (easyMode) {
-            const roll = Math.random();
-            let triple;
-
-            if (roll < 0.6) {
-                // 60% Gewinn (davon ca. 10% Jackpot)
-                triple = makeWinTriple(roll < 0.06);
-            } else {
-                // 40% Verlust
-                triple = makeLoseTriple();
-            }
-
-            a = triple[0];
-            b = triple[1];
-            c = triple[2];
-
-            r1.innerText = a;
-            r2.innerText = b;
-            r3.innerText = c;
-        }
-
-        if (forceLose) {
-            forceLose = false;
-
-            statusBox.className = "status lose";
-            statusBox.innerText = "❌ Verloren";
-
-            spinning = false;
-            savingLocked = false;
-            updateUIState();
-            return;
-        }
-
-        let win = 0;
-
-        if (a === b && b === c) {
-            win = bet * 10;
-            statusBox.className = "status jackpot";
-            statusBox.innerText = "🎰 JACKPOT +" + win.toFixed(2) + "$";
-        }
-        else if (a === b || b === c || a === c) {
-            win = bet * 2;
-            statusBox.className = "status win";
-            statusBox.innerText = "✅ Gewonnen +" + win.toFixed(2) + "$";
-        }
-        else {
-            statusBox.className = "status lose";
-            statusBox.innerText = "❌ Verloren";
-        }
-
-        money += win;
-        updateMoney();
-
-        await new Promise(r => setTimeout(r, 500));
-    }
-
-    spinning = false;
-    savingLocked = false; // 🔓 Save wieder frei
-    updateUIState();
-}
-
-document.getElementById("lever").addEventListener("click", startSpin);
-
-
-document.getElementById("btnRefresh").addEventListener("click", () => {
-    if (spinning) {
-        forceLose = true;
-        money = 10;
-        updateMoney();
-
-        statusBox.className = "status lose";
-        statusBox.innerText = "❌ Während des Spins zurückgesetzt!";
-    } else {
-        money = 10;
-        updateMoney();
-
-        statusBox.className = "status";
-        statusBox.innerText = "💰 Geld zurückgesetzt!";
-    }
-});
-
-
-// Easy Mode an/aus schalten
-document.getElementById("btnEasy").addEventListener("click", () => {
-    if (spinning) return; // nicht mitten im Spin umschalten
-
-    easyMode = !easyMode;
-    const btn = document.getElementById("btnEasy");
-
-    if (easyMode) {
-        money = 100;
-        updateMoney();
-
-        btn.classList.add("easy-active");
-        btn.innerText = "easy mode: AN";
-
-        statusBox.className = "status win";
-        statusBox.innerText = "🟢 Easy Mode an (60% Gewinn) – 100.00$ Startgeld!";
-    } else {
-        btn.classList.remove("easy-active");
-        btn.innerText = "easy mode";
-
-        statusBox.className = "status";
-        statusBox.innerText = "⚪ Easy Mode aus";
-    }
-});
-
-
-document.getElementById("btnAllIn").addEventListener("click", () => {
-    document.getElementById("bet").value = Math.max(1, Math.floor(money));
-});
-
-document.getElementById("btnCashOut").addEventListener("click", () => {
-    statusBox.className = "status";
-    statusBox.innerText = "Ausgezahlt: " + money.toFixed(2) + "$";
-});
-
-updateMoney();
-
-if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js");
-
-    // Wenn ein neuer Service Worker die Kontrolle übernimmt, Seite einmal
-    // automatisch neu laden -> neueste Version (z.B. Easy Mode) erscheint
-    // sofort, ohne dass man den Cache von Hand leeren muss.
-    let swRefreshing = false;
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-        if (swRefreshing) return;
-        swRefreshing = true;
-        window.location.reload();
-    });
-}
-
-document.getElementById("btnExport").addEventListener("click", exportSave);
-
-document.getElementById("importFile").addEventListener("change", async (e) => {
-    if (spinning || savingLocked) {
-        alert("Bitte warte bis der Spin fertig ist!");
-        return;
-    }
-
-    savingLocked = true;
-
-    const file = e.target.files[0];
-    if (!file) {
-        savingLocked = false;
-        return;
-    }
-
-    const text = await file.text();
-    const raw = JSON.parse(text);
-
-    const json = atob(raw.data);
-    const hash = await sha256(json);
-
-    if (hash !== raw.hash) {
-        alert("❌ Save manipuliert!");
-        savingLocked = false;
-        return;
-    }
-
-    const saveData = JSON.parse(json);
-
-    money = saveData.money;
-    updateMoney();
-
-    alert("✔ Save geladen!");
-
-    savingLocked = false;
-});
-
-function updateUIState() {
-    const locked = spinning || savingLocked;
-
-    document.getElementById("btnExport").disabled = locked;
-    document.getElementById("importFile").disabled = locked;
-}
-
-document.getElementById("btnReset").addEventListener("click", () => {
-
-    const confirm1 = confirm(
-        "⚠️ ACHTUNG! ⚠️\n\n"
-        + "Cache inhalt größe: " + (localStorage.length * 2) + " KB\n\n" +
-        "Du bist dabei ALLE lokalen Daten zu löschen.\n\n" +
-        "👉 Es wird empfohlen vorher deinen Save zu exportieren!"
-    );
-
-    if (!confirm1) return;
-
-    const confirm2 = confirm(
-        "Bist du WIRKLICH sicher?\n\n" +
-        "Diese Aktion kann nicht rückgängig gemacht werden!"
-    );
-
-    if (!confirm2) return;
-
-    // 🔥 alles löschen
-    localStorage.clear();
-
-    money = 10;
-    updateMoney();
-
-    statusBox.className = "status lose";
-    statusBox.innerText = "🗑 Daten zurückgesetzt!";
-
-    alert("Cache gelöscht!");
-});
-</script>
-
+<!-- CREATE -->
+<div id="screen-create" class="screen hidden">
+  <button class="btn-back" id="btn-back-1">← Zurück</button>
+  <h2>Lobby erstellen</h2>
+
+  <label>Dein Username</label>
+  <input id="create-username" type="text" maxlength="20">
+
+  <label>Dein PIN (min. 4 Zeichen, merken!)</label>
+  <input id="create-pin" type="password" maxlength="20">
+
+  <label><input id="create-public" type="checkbox"> Öffentliche Lobby</label>
+
+  <div id="create-name-wrap" class="hidden">
+    <label>Lobby-Name</label>
+    <input id="create-name" type="text" maxlength="30">
+  </div>
+
+  <label>Dauer der Runde (Minuten)</label>
+  <input id="create-duration" type="number" value="10" min="1">
+
+  <button id="btn-create-submit" class="btn-primary">Lobby erstellen & starten</button>
+</div>
+
+<!-- JOIN -->
+<div id="screen-join" class="screen hidden">
+  <button class="btn-back" id="btn-back-2">← Zurück</button>
+  <h2>Lobby beitreten</h2>
+
+  <label>Lobby-Code</label>
+  <input id="join-code" type="text" maxlength="5" style="text-transform:uppercase">
+
+  <label>Dein Username</label>
+  <input id="join-username" type="text" maxlength="20">
+
+  <label>Dein PIN</label>
+  <input id="join-pin" type="password" maxlength="20">
+
+  <button id="btn-join-submit" class="btn-primary">Beitreten</button>
+</div>
+
+<!-- PUBLIC LIST -->
+<div id="screen-public-list" class="screen hidden">
+  <button class="btn-back" id="btn-back-3">← Zurück</button>
+  <h2>Öffentliche Lobbys</h2>
+  <div id="public-list"></div>
+</div>
+
+<!-- GAME -->
+<div id="screen-game" class="screen hidden">
+
+  <div class="game-topbar">
+    <div>
+      <span id="lobby-title"></span>
+      <span id="lobby-status"></span>
+      <span id="countdown"></span>
+    </div>
+    <div class="topbar-right">
+      <button id="btn-start-round" class="hidden">Runde starten</button>
+      <button id="btn-abort" class="btn-danger">Abbrechen</button>
+    </div>
+  </div>
+
+  <div id="winner-box" class="winner-box hidden"></div>
+
+  <div id="player-grid" class="player-grid"></div>
+
+  <div class="my-controls">
+    <label>Einsatz</label>
+    <input id="bet" type="number" value="1" min="1">
+    <button id="btn-spin">🔴 Spin</button>
+    <div id="my-status" class="my-status"></div>
+  </div>
+
+</div>
+
+<script type="module" src="app.js"></script>
 </body>
 </html>
