@@ -1,0 +1,242 @@
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #1b1b1b;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+.hidden { display: none !important; }
+
+.screen {
+  min-height: 100vh;
+  padding: 30px;
+}
+
+h1, h2, h3 { margin-top: 0; }
+
+label { display: block; margin-top: 14px; margin-bottom: 4px; }
+
+input[type="text"], input[type="password"], input[type="number"] {
+  width: 100%;
+  max-width: 200px;
+  padding: 10px;
+  font-size: 16px;
+  background: #222;
+  border: 1px solid #444;
+  color: white;
+  border-radius: 8px;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-size: 16px;
+  background: #333;
+  color: white;
+  transition: 0.15s;
+}
+button:hover { background: #444; }
+
+.btn-primary { background: #1a5c2a; margin-top: 22px; }
+.btn-primary:hover { background: #1f7534; }
+
+.btn-danger { background: #5c1a1a; }
+.btn-danger:hover { background: #7a2323; }
+
+.btn-back { margin-bottom: 20px; background: #222; }
+
+.menu-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 320px;
+  margin-top: 30px;
+}
+
+.public-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #222;
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  max-width: 500px;
+}
+
+/* ------------------- Klassisches Maschinen-Design ------------------- */
+/* Reihenfolge im Markup: erst .reels-panel, dann .lever-panel
+   -> in einer Flex-Reihe landet der Hebel automatisch rechts. */
+
+.machine {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  background: #111;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.machine-mine { border: 2px solid gold; }
+
+.reels-panel {
+  flex: 1;
+  min-width: 260px;
+}
+
+.tile-name {
+  font-weight: bold;
+  font-size: 16px;
+  color: gold;
+  margin-bottom: 4px;
+}
+
+.money {
+  font-size: 32px;
+  margin-bottom: 16px;
+}
+
+.reels {
+  display: flex;
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.reel {
+  width: 90px;
+  height: 90px;
+  background: white;
+  color: black;
+  font-size: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  box-shadow: 0 0 15px #000;
+}
+
+.status {
+  font-size: 22px;
+  min-height: 32px;
+  margin-bottom: 10px;
+}
+
+.win { color: #00ff66; }
+.lose { color: #ff5555; }
+.jackpot { color: gold; }
+
+.buttons { margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; }
+
+.lever-panel {
+  width: 130px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.lever-btn {
+  width: 110px;
+  height: 220px;
+  font-size: 22px;
+  background: #444;
+  border-radius: 15px;
+  transition: transform .25s;
+}
+.lever-btn:hover { background: #555; }
+.lever-pulled { transform: rotate(25deg); }
+
+/* ------------------- Lobby / Game screen ------------------- */
+
+.game-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 0;
+  font-size: 15px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.topbar-right { display: flex; gap: 10px; }
+
+#countdown {
+  margin-left: 14px;
+  font-weight: bold;
+  color: gold;
+}
+
+.winner-box {
+  text-align: center;
+  padding: 16px;
+  font-size: 22px;
+  background: #2a2200;
+  color: gold;
+  border-bottom: 2px solid gold;
+  margin-bottom: 16px;
+  border-radius: 10px;
+}
+
+.others-title { font-size: 16px; color: #aaa; margin-top: 10px; }
+
+.player-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.tile {
+  background: #222;
+  border-radius: 12px;
+  padding: 10px;
+  text-align: center;
+  position: relative;
+  border: 2px solid #333;
+}
+
+.tile-aborted { opacity: 0.5; }
+
+.tile .tile-name {
+  font-size: 13px;
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tile-reels {
+  font-size: 22px;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin: 6px 0;
+}
+
+.tile-money { font-size: 14px; }
+.tile-profit { font-size: 12px; margin-top: 2px; }
+.profit-pos { color: #00ff66; }
+.profit-neg { color: #ff5555; }
+
+.tile-tag {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 9px;
+  background: #5c1a1a;
+  padding: 2px 5px;
+  border-radius: 6px;
+}
+
+@media (max-width: 600px) {
+  .screen { padding: 16px; }
+  .machine { flex-direction: column; }
+  .lever-panel { order: 2; }
+  .reels-panel { order: 1; width: 100%; }
+  .reel { width: 70px; height: 70px; font-size: 36px; }
+  .player-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+}
