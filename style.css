@@ -49,6 +49,59 @@ button:hover { background: #444; }
 
 .btn-back { margin-bottom: 20px; background: #222; }
 
+.solo-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.solo-toolbar button,
+.import-btn {
+  background: #222;
+  color: white;
+  border: 1px solid #444;
+  padding: 12px 15px;
+  font-size: 15px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: 0.2s;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.solo-toolbar button:hover,
+.import-btn:hover {
+  background: #333;
+  transform: scale(1.03);
+}
+
+.import-btn input { display: none; }
+
+#solo-btn-reset-cache:hover {
+  background: #400000;
+  color: #ffcccc;
+  border-color: #ff0000;
+}
+
+#solo-btn-refresh:hover {
+  background: #3a3300;
+  border-color: #ffd400;
+  color: #faefb8;
+}
+
+#solo-btn-easy.easy-active {
+  background: #06351b;
+  border-color: #00ff66;
+  color: #b8ffd2;
+}
+
 .menu-buttons {
   display: flex;
   flex-direction: column;
@@ -240,3 +293,4 @@ button:hover { background: #444; }
   .reel { width: 70px; height: 70px; font-size: 36px; }
   .player-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
 }
+
