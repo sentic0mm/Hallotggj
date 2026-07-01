@@ -574,16 +574,6 @@ updateMoney();
 
 if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./sw.js");
-
-    // Wenn ein neuer Service Worker die Kontrolle übernimmt, Seite einmal
-    // automatisch neu laden -> neueste Version (z.B. Easy Mode) erscheint
-    // sofort, ohne dass man den Cache von Hand leeren muss.
-    let swRefreshing = false;
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-        if (swRefreshing) return;
-        swRefreshing = true;
-        window.location.reload();
-    });
 }
 
 document.getElementById("btnExport").addEventListener("click", exportSave);
