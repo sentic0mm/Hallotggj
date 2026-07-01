@@ -24,6 +24,17 @@
 <div id="screen-solo" class="screen hidden">
   <button class="btn-back" id="btn-back-solo">← Zurück</button>
 
+  <div class="solo-toolbar">
+    <button id="solo-btn-refresh">refresh moneten</button>
+    <button id="solo-btn-easy">easy mode</button>
+    <button id="solo-btn-reset-cache">🗑 Reset (Cache leeren)</button>
+    <button id="solo-btn-export">💾 Export Save</button>
+    <label class="import-btn">
+      📂 Import Save
+      <input type="file" id="solo-import-file" accept=".json">
+    </label>
+  </div>
+
   <div class="machine">
     <div class="reels-panel">
       <div class="money" id="solo-money">Geld: 10.00$</div>
