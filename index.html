@@ -618,6 +618,18 @@ body.mp-active .save-buttons {
     font-size: 14px;
 }
 
+/* Eingeloggter Account: dezent unten rechts, grau statt weiß */
+#accountTag {
+    position: fixed;
+    right: 10px;
+    bottom: 8px;
+    color: #777;
+    font-size: 13px;
+    z-index: 200;
+    pointer-events: none;
+    user-select: none;
+}
+
 .menu-btn.small {
     font-size: 15px;
     padding: 10px 12px;
@@ -629,6 +641,9 @@ body.mp-active .save-buttons {
 </head>
 
 <body>
+
+<!-- Eingeloggter Account, dezent unten rechts -->
+<div id="accountTag" hidden></div>
 
 <!-- =============== LOGIN / REGISTRIEREN =============== -->
 <div id="screenLogin" class="screen" hidden>
@@ -1488,18 +1503,17 @@ document.getElementById("btnChangeRequest").addEventListener("click", () => {
 
 function accUpdateMenu() {
     const info = document.getElementById("accountInfo");
+    const tag = document.getElementById("accountTag");
 
     if (account) {
-        info.innerHTML = "";
-        const line = document.createElement("div");
-        line.innerText = "👤 @" + account.handle;
-        const idLine = document.createElement("div");
-        idLine.className = "acc-id";
-        idLine.innerText = "User-ID: " + account.uid;
-        info.appendChild(line);
-        info.appendChild(idLine);
+        // Name & ID stehen dezent unten rechts, nicht groß im Menü
+        info.hidden = true;
+        tag.hidden = false;
+        tag.innerText = "👤 @" + account.handle + " · " + account.uid;
     } else {
+        info.hidden = false;
         info.innerText = "🎭 Du spielst als Gast – Multiplayer braucht einen Account.";
+        tag.hidden = true;
     }
 
     document.getElementById("btnGoLogin").hidden = !!account;
