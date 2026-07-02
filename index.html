@@ -16,6 +16,11 @@ body {
     font-family: Arial, sans-serif;
 }
 
+/* hidden-Attribut muss immer gewinnen, auch gegen display:flex */
+[hidden] {
+    display: none !important;
+}
+
 .container {
     display: flex;
     min-height: 100vh;
@@ -214,11 +219,433 @@ input {
     color: #b8ffd2;
 }
 
+/* ---------- Multiplayer: Cheat-Buttons im MP verstecken ---------- */
+
+body.mp-active #btnRefresh,
+body.mp-active #btnEasy,
+body.mp-active #btnReset,
+body.mp-active .save-buttons {
+    display: none;
+}
+
+/* ---------- Multiplayer: Menü-Screens ---------- */
+
+.screen {
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 50px 20px;
+    text-align: center;
+}
+
+.screen h1 {
+    font-size: 42px;
+    margin-bottom: 30px;
+}
+
+.screen h2 {
+    font-size: 32px;
+    margin-bottom: 25px;
+}
+
+.menu-btn {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 12px 0;
+    padding: 16px 20px;
+    font-size: 20px;
+    background: #222;
+    color: white;
+    border: 1px solid #444;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: 0.2s;
+    user-select: none;
+}
+
+.menu-btn:hover {
+    background: #333;
+    transform: scale(1.03);
+}
+
+.menu-btn.primary {
+    background: #06351b;
+    border-color: #00ff66;
+}
+
+.menu-btn.primary:hover {
+    background: #0a4a26;
+}
+
+.menu-btn.danger:hover {
+    background: #400000;
+    border-color: #ff0000;
+    color: #ffcccc;
+}
+
+.screen input, .screen select {
+    background: #111;
+    color: white;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 18px;
+    box-sizing: border-box;
+}
+
+.screen label {
+    text-align: left;
+    color: #aaa;
+}
+
+.name-row input {
+    width: 100%;
+    text-align: center;
+    font-size: 22px;
+}
+
+.code-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 25px;
+}
+
+.code-row input {
+    flex: 1;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    text-align: center;
+}
+
+.code-row button {
+    white-space: nowrap;
+    width: auto;
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.menu-status {
+    min-height: 30px;
+    margin-top: 20px;
+    font-size: 18px;
+    color: #ffd400;
+}
+
+/* ---------- Lobby-Browser ---------- */
+
+.lobby-entry {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: #222;
+    border: 1px solid #444;
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 10px 0;
+    font-size: 18px;
+    text-align: left;
+}
+
+.lobby-entry .join-btn {
+    background: #06351b;
+    color: white;
+    border: 1px solid #00ff66;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.lobby-entry .join-btn:hover {
+    background: #0a4a26;
+}
+
+.lobby-entry .badge {
+    color: #ff5555;
+    font-size: 15px;
+}
+
+/* ---------- Lobby-Screen ---------- */
+
+.lobby-code-box {
+    font-size: 30px;
+    letter-spacing: 8px;
+    background: #111;
+    border: 1px dashed #ffd400;
+    color: #ffd400;
+    border-radius: 10px;
+    padding: 12px;
+    margin: 15px 0;
+    user-select: all;
+}
+
+.lobby-settings {
+    background: #222;
+    border: 1px solid #444;
+    border-radius: 10px;
+    padding: 15px 20px 20px;
+    margin: 20px 0;
+    text-align: left;
+}
+
+.lobby-settings label {
+    margin-top: 12px;
+}
+
+.lobby-settings select {
+    width: 100%;
+    margin-top: 5px;
+}
+
+.lobby-settings .easy-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.lobby-settings .easy-row input {
+    width: 22px;
+    height: 22px;
+    margin: 0;
+}
+
+.player-list {
+    text-align: left;
+    background: #222;
+    border: 1px solid #444;
+    border-radius: 10px;
+    padding: 10px 20px;
+    margin: 20px 0;
+}
+
+.player-list .player-row {
+    padding: 8px 0;
+    border-bottom: 1px solid #333;
+    font-size: 18px;
+}
+
+.player-list .player-row:last-child {
+    border-bottom: none;
+}
+
+.player-list .me {
+    color: #00ff66;
+}
+
+/* ---------- Scoreboard (rechte Seite im Spiel) ---------- */
+
+#mpSidebar {
+    width: 250px;
+    flex-shrink: 0;
+    background: #111;
+    border-left: 2px solid #333;
+    padding: 20px 15px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+#mpTimer {
+    font-size: 42px;
+    text-align: center;
+    color: #ffd400;
+    margin-bottom: 5px;
+    font-variant-numeric: tabular-nums;
+}
+
+#mpTimer.time-low {
+    color: #ff5555;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    50% { opacity: 0.4; }
+}
+
+.mp-score-title {
+    text-align: center;
+    font-size: 20px;
+    color: #aaa;
+    margin: 10px 0;
+}
+
+#mpScores {
+    flex: 1;
+}
+
+.score-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    margin: 4px 0;
+    background: #1d1d1d;
+    border-radius: 8px;
+    font-size: 16px;
+}
+
+.score-row.self {
+    background: #06351b;
+    border: 1px solid #00ff66;
+}
+
+.score-row .score-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.score-row .score-money {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+#btnMpLeave {
+    margin-top: 15px;
+    background: #222;
+    color: white;
+    border: 1px solid #444;
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+#btnMpLeave:hover {
+    background: #400000;
+    border-color: #ff0000;
+    color: #ffcccc;
+}
+
+/* ---------- Ergebnis-Screen ---------- */
+
+#resultWinner {
+    font-size: 30px;
+    color: gold;
+    margin: 20px 0 30px;
+}
+
+.result-list {
+    text-align: left;
+    background: #222;
+    border: 1px solid #444;
+    border-radius: 10px;
+    padding: 10px 20px;
+    margin: 0 0 25px;
+}
+
+.result-list .result-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #333;
+    font-size: 20px;
+}
+
+.result-list .result-row:last-child {
+    border-bottom: none;
+}
+
+.result-list .me {
+    color: #00ff66;
+}
+
 </style>
 
 </head>
 
 <body>
+
+<!-- =============== HAUPTMENÜ =============== -->
+<div id="screenMenu" class="screen">
+    <h1>🎰 gamblen ist toll</h1>
+
+    <label>Dein Name</label>
+    <div class="name-row">
+        <input id="playerName" maxlength="16" placeholder="Spieler">
+    </div>
+
+    <button id="btnSolo" class="menu-btn primary">🎰 Solo spielen</button>
+    <button id="btnPublic" class="menu-btn">🌍 Öffentliche Lobbys</button>
+    <button id="btnCreatePrivate" class="menu-btn">🔒 Private Lobby erstellen</button>
+
+    <div class="code-row">
+        <input id="joinCode" maxlength="5" placeholder="CODE">
+        <button id="btnJoinCode" class="menu-btn">Beitreten</button>
+    </div>
+
+    <div id="menuStatus" class="menu-status"></div>
+</div>
+
+<!-- =============== ÖFFENTLICHE LOBBYS =============== -->
+<div id="screenBrowser" class="screen" hidden>
+    <h2>🌍 Öffentliche Lobbys</h2>
+
+    <div id="lobbyList"></div>
+
+    <button id="btnRescan" class="menu-btn">🔄 Aktualisieren</button>
+    <button id="btnCreatePublic" class="menu-btn primary">➕ Öffentliche Lobby erstellen</button>
+    <button id="btnBrowserBack" class="menu-btn">← Zurück</button>
+
+    <div id="browserStatus" class="menu-status"></div>
+</div>
+
+<!-- =============== LOBBY =============== -->
+<div id="screenLobby" class="screen" hidden>
+    <h2 id="lobbyTitle">Lobby</h2>
+
+    <div id="lobbyCodeWrap" hidden>
+        <label>Code zum Teilen:</label>
+        <div class="lobby-code-box" id="lobbyCodeBox">-----</div>
+        <button id="btnCopyCode" class="menu-btn">📋 Code kopieren</button>
+    </div>
+
+    <div class="lobby-settings">
+        <label>⏱ Rundendauer</label>
+        <select id="setDuration">
+            <option value="60">1 Minute</option>
+            <option value="120">2 Minuten</option>
+            <option value="180" selected>3 Minuten</option>
+            <option value="300">5 Minuten</option>
+            <option value="600">10 Minuten</option>
+        </select>
+
+        <label>💰 Startgeld</label>
+        <select id="setStartMoney">
+            <option value="10">10$</option>
+            <option value="25" selected>25$</option>
+            <option value="50">50$</option>
+            <option value="100">100$</option>
+        </select>
+
+        <div class="easy-row">
+            <input type="checkbox" id="setEasy">
+            <label for="setEasy" style="margin:0">🟢 Easy Mode für alle (60% Gewinn)</label>
+        </div>
+    </div>
+
+    <div class="player-list" id="lobbyPlayers"></div>
+
+    <button id="btnStartGame" class="menu-btn primary" hidden>🚀 Spiel starten</button>
+    <div id="lobbyHint" class="menu-status"></div>
+    <button id="btnLeaveLobby" class="menu-btn danger">🚪 Lobby verlassen</button>
+</div>
+
+<!-- =============== ERGEBNIS =============== -->
+<div id="screenResults" class="screen" hidden>
+    <h2>🏁 Runde vorbei!</h2>
+
+    <div id="resultWinner"></div>
+    <div class="result-list" id="resultList"></div>
+
+    <button id="btnBackToLobby" class="menu-btn primary">🔁 Zurück zur Lobby</button>
+    <button id="btnResultsLeave" class="menu-btn danger">🚪 Lobby verlassen</button>
+</div>
+
+<!-- =============== SPIEL =============== -->
+<div id="screenGame" hidden>
 
 <button id="btnRefresh">refresh moneten</button>
 
@@ -267,8 +694,23 @@ input {
             <button id="btnCashOut">CASH OUT</button>
         </div>
 
+        <button id="btnGameBack" class="menu-btn" style="max-width:250px; margin-top:30px;">← Zurück zum Menü</button>
+
     </div>
+
+    <!-- Echtzeit-Scoreboard (nur im Multiplayer sichtbar) -->
+    <div id="mpSidebar" hidden>
+        <div id="mpTimer">0:00</div>
+        <div class="mp-score-title">🏆 Scoreboard</div>
+        <div id="mpScores"></div>
+        <button id="btnMpLeave">🚪 Verlassen</button>
+    </div>
+
 </div>
+
+</div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 
 <script>
 // -------von hier-------
@@ -348,6 +790,18 @@ if (localStorage.getItem("spinReload") === "true") {
     localStorage.removeItem("spinReload");
 }
 
+// ---------- Multiplayer-Zustand (muss vor updateMoney() existieren) ----------
+const mpGame = { active: false, ended: false, endTime: 0, timerInt: null, endTimeout: null, rankTimeout: null };
+let mpRole = null;        // null | "host" | "client"
+let mpPeer = null;        // eigenes Peer-Objekt
+let mpHostConn = null;    // Client: Verbindung zum Host
+let mpPlayers = [];       // Host: [{id, name, money, conn}] – Host selbst hat conn = null
+let mpSettings = { duration: 180, startMoney: 25, easy: false, isPublic: true };
+let mpLobbyCode = null;   // Code bei privater Lobby
+let mpMyName = "Spieler";
+let mpLeaving = false;    // unterdrückt "Verbindung verloren" beim absichtlichen Verlassen
+let mpBusy = false;       // verhindert Doppelklick beim Erstellen/Beitreten
+
 function saveMoney() {
     localStorage.setItem("money", money);
 }
@@ -361,7 +815,13 @@ function updateMoney() {
     document.getElementById("money").innerText =
         "Geld: " + money.toFixed(2) + "$";
 
-    saveMoney();
+    if (mpGame.active) {
+        // Im Multiplayer NICHT in den Solo-Save schreiben,
+        // sondern den aktuellen Kontostand melden.
+        mpReportMoney();
+    } else {
+        saveMoney();
+    }
 }
 
 function randomSymbol() {
@@ -412,6 +872,13 @@ async function startSpin() {
 
     if (spinning) return;
 
+    // Multiplayer: nach Ablauf der Zeit keine neuen Spins mehr
+    if (mpGame.active && mpGame.ended) {
+        statusBox.className = "status";
+        statusBox.innerText = "⏱ Runde vorbei!";
+        return;
+    }
+
     let bet = parseFloat(document.getElementById("bet").value);
     let spins = parseInt(document.getElementById("spinCount").value);
 
@@ -436,6 +903,12 @@ async function startSpin() {
     setTimeout(() => lever.classList.remove("lever-pulled"), 250);
 
     for (let i = 0; i < spins; i++) {
+
+        if (mpGame.active && mpGame.ended) {
+            statusBox.className = "status";
+            statusBox.innerText = "⏱ Zeit abgelaufen!";
+            break;
+        }
 
         if (money < bet) {
             statusBox.className = "status lose";
@@ -574,6 +1047,16 @@ updateMoney();
 
 if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./sw.js");
+
+    // Wenn ein neuer Service Worker die Kontrolle übernimmt, Seite einmal
+    // automatisch neu laden -> neueste Version (z.B. Multiplayer) erscheint
+    // sofort, ohne dass man den Cache von Hand leeren muss.
+    let swRefreshing = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (swRefreshing) return;
+        swRefreshing = true;
+        window.location.reload();
+    });
 }
 
 document.getElementById("btnExport").addEventListener("click", exportSave);
@@ -650,6 +1133,798 @@ document.getElementById("btnReset").addEventListener("click", () => {
 
     alert("Cache gelöscht!");
 });
+
+// ======================================================================
+// =========================== MULTIPLAYER ==============================
+// ======================================================================
+//
+// Technik: PeerJS (WebRTC) mit dem kostenlosen öffentlichen PeerJS-Broker.
+// Es gibt KEINEN eigenen Server – der Lobby-Host ist der "Server" der Runde.
+//
+// Öffentliche Lobbys: Hosts belegen feste Peer-IDs (pub-0 bis pub-9).
+// Die Lobby-Suche probiert einfach alle 10 IDs durch und fragt Infos ab.
+// Private Lobbys: zufälliger 5-stelliger Code als Teil der Peer-ID.
+
+const MP_MAX_PLAYERS = 10;
+const MP_PUB_SLOTS = 10;
+const MP_ID_BASE = "sentic-slotm-v1-";
+const MP_PUB_PREFIX = MP_ID_BASE + "pub-";
+const MP_PRIV_PREFIX = MP_ID_BASE + "priv-";
+
+const elMenuStatus = document.getElementById("menuStatus");
+const elBrowserStatus = document.getElementById("browserStatus");
+const elLobbyList = document.getElementById("lobbyList");
+const elLobbyPlayers = document.getElementById("lobbyPlayers");
+const elMpScores = document.getElementById("mpScores");
+const elMpTimer = document.getElementById("mpTimer");
+
+// ---------- Screens umschalten ----------
+
+function showScreen(id) {
+    for (const s of ["screenMenu", "screenBrowser", "screenLobby", "screenResults", "screenGame"]) {
+        document.getElementById(s).hidden = (s !== id);
+    }
+}
+
+function setMenuStatus(text) {
+    elMenuStatus.innerText = text || "";
+}
+
+// ---------- Name ----------
+
+const nameInput = document.getElementById("playerName");
+nameInput.value = localStorage.getItem("playerName") || "";
+
+function mpGetName() {
+    let n = nameInput.value.trim().slice(0, 16);
+    if (!n) {
+        n = "Spieler" + Math.floor(Math.random() * 1000);
+        nameInput.value = n;
+    }
+    localStorage.setItem("playerName", n);
+    return n;
+}
+
+function mpAvailable() {
+    if (typeof Peer === "undefined") {
+        setMenuStatus("❌ Multiplayer nicht verfügbar (keine Internetverbindung?)");
+        return false;
+    }
+    return true;
+}
+
+// ---------- Solo ----------
+
+document.getElementById("btnSolo").addEventListener("click", () => {
+    // Solo = das normale Spiel mit Save wie bisher
+    const sm = localStorage.getItem("money");
+    money = sm !== null ? parseFloat(sm) : 10;
+    document.body.classList.remove("mp-active");
+    document.getElementById("mpSidebar").hidden = true;
+    statusBox.className = "status";
+    statusBox.innerText = "Hebel ziehen!";
+    updateMoney();
+    showScreen("screenGame");
+});
+
+document.getElementById("btnGameBack").addEventListener("click", () => {
+    if (mpGame.active) {
+        if (!confirm("Runde wirklich verlassen?")) return;
+        mpLeaveLobby();
+        return;
+    }
+    if (mpRole) { mpLeaveLobby(); return; }
+    showScreen("screenMenu");
+    setMenuStatus("");
+});
+
+// ---------- Fehlerbehandlung ----------
+
+function mpHandlePeerError(err) {
+    console.warn("PeerJS Fehler:", err.type, err);
+    if (err.type === "network" || err.type === "server-error" || err.type === "socket-error") {
+        mpConnectionLost("❌ Verbindung zum Multiplayer-Server fehlgeschlagen.");
+    }
+}
+
+function mpConnectionLost(reason) {
+    const wasActive = mpRole !== null;
+    mpCleanup();
+    if (wasActive) {
+        showScreen("screenMenu");
+        setMenuStatus(reason);
+    }
+}
+
+// ---------- Lobby erstellen (Host) ----------
+
+function mpNewCode() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let c = "";
+    for (let i = 0; i < 5; i++) c += chars[Math.floor(Math.random() * chars.length)];
+    return c;
+}
+
+document.getElementById("btnCreatePublic").addEventListener("click", () => {
+    if (mpRole || mpBusy) return;
+    if (!mpAvailable()) { showScreen("screenMenu"); return; }
+    mpBusy = true;
+    mpMyName = mpGetName();
+    mpSettings.isPublic = true;
+    elBrowserStatus.innerText = "Lobby wird erstellt…";
+    const candidates = [];
+    for (let i = 0; i < MP_PUB_SLOTS; i++) candidates.push(MP_PUB_PREFIX + i);
+    mpTryHostId(candidates, 0, msg => { elBrowserStatus.innerText = msg; });
+});
+
+document.getElementById("btnCreatePrivate").addEventListener("click", () => {
+    if (mpRole || mpBusy) return;
+    if (!mpAvailable()) return;
+    mpBusy = true;
+    mpMyName = mpGetName();
+    mpSettings.isPublic = false;
+    setMenuStatus("Private Lobby wird erstellt…");
+    const candidates = [];
+    for (let i = 0; i < 5; i++) candidates.push(MP_PRIV_PREFIX + mpNewCode());
+    mpTryHostId(candidates, 0, setMenuStatus);
+});
+
+// Probiert nacheinander Peer-IDs aus, bis eine frei ist.
+function mpTryHostId(candidates, idx, statusFn) {
+    if (idx >= candidates.length) {
+        mpBusy = false;
+        statusFn("❌ Keine freie Lobby gefunden. Bitte später nochmal versuchen!");
+        return;
+    }
+
+    const id = candidates[idx];
+    const peer = new Peer(id);
+    let settled = false;
+
+    peer.on("open", () => {
+        if (settled) return;
+        settled = true;
+        mpBecomeHost(peer, id);
+    });
+
+    peer.on("error", err => {
+        if (!settled && err.type === "unavailable-id") {
+            settled = true;
+            peer.destroy();
+            mpTryHostId(candidates, idx + 1, statusFn);
+            return;
+        }
+        if (!settled && (err.type === "network" || err.type === "server-error" || err.type === "socket-error")) {
+            settled = true;
+            peer.destroy();
+            mpBusy = false;
+            statusFn("❌ Verbindung zum Multiplayer-Server fehlgeschlagen.");
+            return;
+        }
+        mpHandlePeerError(err);
+    });
+}
+
+function mpBecomeHost(peer, id) {
+    mpBusy = false;
+    mpRole = "host";
+    mpPeer = peer;
+    mpLobbyCode = mpSettings.isPublic ? null : id.slice(MP_PRIV_PREFIX.length);
+    mpPlayers = [{ id: "host", name: mpMyName, money: 0, conn: null }];
+
+    peer.on("connection", conn => mpHostOnConnection(conn));
+
+    // Bei kurzem Broker-Aussetzer wieder verbinden (bestehende
+    // WebRTC-Verbindungen laufen davon unabhängig weiter).
+    peer.on("disconnected", () => {
+        if (!mpLeaving && mpPeer === peer && !peer.destroyed) peer.reconnect();
+    });
+
+    setMenuStatus("");
+    elBrowserStatus.innerText = "";
+    mpShowLobby();
+    mpBroadcastLobby();
+}
+
+function mpHostOnConnection(conn) {
+    conn.on("data", raw => {
+        const msg = raw || {};
+
+        // Lobby-Suche fragt nur Infos ab
+        if (msg.type === "info?") {
+            conn.send({
+                type: "info",
+                name: mpMyName + "s Lobby",
+                players: mpPlayers.length,
+                max: MP_MAX_PLAYERS,
+                inGame: mpGame.active
+            });
+            return;
+        }
+
+        if (msg.type === "join") {
+            if (mpGame.active) {
+                conn.send({ type: "reject", reason: "Die Runde läuft schon!" });
+                setTimeout(() => conn.close(), 500);
+                return;
+            }
+            if (mpPlayers.length >= MP_MAX_PLAYERS) {
+                conn.send({ type: "reject", reason: "Lobby ist voll (" + MP_MAX_PLAYERS + "/" + MP_MAX_PLAYERS + ")!" });
+                setTimeout(() => conn.close(), 500);
+                return;
+            }
+            const name = String(msg.name || "Spieler").slice(0, 16);
+            mpPlayers.push({ id: conn.peer, name: name, money: 0, conn: conn });
+            conn.send({ type: "welcome", settings: mpSettings, code: mpLobbyCode, hostName: mpMyName });
+            mpBroadcastLobby();
+            return;
+        }
+
+        if (msg.type === "money" || msg.type === "final") {
+            const p = mpPlayers.find(p => p.conn === conn);
+            if (p) {
+                p.money = Number(msg.value) || 0;
+                if (mpGame.active) mpBroadcastScores();
+            }
+            return;
+        }
+    });
+
+    conn.on("close", () => {
+        const i = mpPlayers.findIndex(p => p.conn === conn);
+        if (i >= 0) {
+            mpPlayers.splice(i, 1);
+            mpBroadcastLobby();
+            if (mpGame.active) mpBroadcastScores();
+        }
+    });
+
+    conn.on("error", () => {});
+}
+
+function mpBroadcast(msg) {
+    for (const p of mpPlayers) {
+        if (p.conn && p.conn.open) p.conn.send(msg);
+    }
+}
+
+function mpBroadcastLobby() {
+    const list = mpPlayers.map(p => ({ id: p.id, name: p.name, host: p.conn === null }));
+    mpBroadcast({ type: "lobby", players: list, settings: mpSettings });
+    mpRenderLobby(list);
+}
+
+function mpBroadcastScores() {
+    const scores = mpPlayers.map(p => ({ id: p.id, name: p.name, money: p.money }));
+    mpBroadcast({ type: "scores", scores: scores });
+    mpRenderScores(scores);
+}
+
+// ---------- Lobby beitreten (Client) ----------
+
+document.getElementById("btnJoinCode").addEventListener("click", () => {
+    const code = document.getElementById("joinCode").value.trim().toUpperCase();
+    if (code.length !== 5) {
+        setMenuStatus("❌ Der Code hat 5 Zeichen!");
+        return;
+    }
+    if (!mpAvailable()) return;
+    mpJoin(MP_PRIV_PREFIX + code, setMenuStatus);
+});
+
+document.getElementById("joinCode").addEventListener("keydown", e => {
+    if (e.key === "Enter") document.getElementById("btnJoinCode").click();
+});
+
+function mpJoin(hostId, statusFn) {
+    if (mpRole || mpBusy) return;
+    mpBusy = true;
+    mpMyName = mpGetName();
+    statusFn("Trete bei…");
+
+    const peer = new Peer();
+    let joined = false;
+    let failed = false;
+
+    const failTimer = setTimeout(() => {
+        if (!joined && !failed) {
+            failed = true;
+            mpBusy = false;
+            peer.destroy();
+            statusFn("❌ Lobby nicht erreichbar.");
+        }
+    }, 10000);
+
+    peer.on("open", () => {
+        const conn = peer.connect(hostId, { reliable: true });
+
+        conn.on("open", () => {
+            conn.send({ type: "join", name: mpMyName });
+        });
+
+        conn.on("data", raw => {
+            const msg = raw || {};
+
+            if (msg.type === "welcome") {
+                joined = true;
+                clearTimeout(failTimer);
+                mpBusy = false;
+                mpRole = "client";
+                mpPeer = peer;
+                mpHostConn = conn;
+                mpSettings = msg.settings;
+                mpLobbyCode = msg.code;
+                statusFn("");
+                setMenuStatus("");
+                mpShowLobby();
+            }
+            else if (msg.type === "reject") {
+                failed = true;
+                clearTimeout(failTimer);
+                mpBusy = false;
+                statusFn("❌ " + msg.reason);
+                peer.destroy();
+            }
+            else if (msg.type === "lobby") {
+                mpSettings = msg.settings;
+                mpApplySettingsToUI();
+                mpRenderLobby(msg.players);
+            }
+            else if (msg.type === "start") {
+                mpSettings = msg.settings;
+                mpStartRound();
+            }
+            else if (msg.type === "scores") {
+                mpRenderScores(msg.scores);
+            }
+            else if (msg.type === "timeup") {
+                mpLocalTimeUp();
+            }
+            else if (msg.type === "gameover") {
+                mpShowResults(msg.ranking);
+            }
+        });
+
+        conn.on("close", () => {
+            if (joined && !mpLeaving) {
+                mpConnectionLost("❌ Der Host hat die Lobby geschlossen.");
+            }
+        });
+
+        conn.on("error", () => {});
+    });
+
+    peer.on("error", err => {
+        if (err.type === "peer-unavailable") {
+            if (!joined && !failed) {
+                failed = true;
+                clearTimeout(failTimer);
+                mpBusy = false;
+                peer.destroy();
+                statusFn("❌ Lobby nicht gefunden! Code prüfen?");
+            }
+            return;
+        }
+        mpHandlePeerError(err);
+    });
+}
+
+// ---------- Öffentliche Lobbys suchen ----------
+
+document.getElementById("btnPublic").addEventListener("click", () => {
+    if (!mpAvailable()) return;
+    mpGetName();
+    showScreen("screenBrowser");
+    mpScanLobbies();
+});
+
+document.getElementById("btnRescan").addEventListener("click", mpScanLobbies);
+
+document.getElementById("btnBrowserBack").addEventListener("click", () => {
+    showScreen("screenMenu");
+    setMenuStatus("");
+});
+
+let mpScanning = false;
+
+function mpScanLobbies() {
+    if (mpScanning || typeof Peer === "undefined") return;
+    mpScanning = true;
+
+    elBrowserStatus.innerText = "";
+    elLobbyList.innerHTML = '<div class="lobby-entry">🔍 Suche Lobbys…</div>';
+
+    const peer = new Peer();
+    const found = [];
+    let pending = MP_PUB_SLOTS;
+    let finished = false;
+
+    function done() {
+        pending--;
+        if (pending <= 0) finalize();
+    }
+
+    function finalize() {
+        if (finished) return;
+        finished = true;
+        mpScanning = false;
+        peer.destroy();
+        mpRenderLobbyList(found);
+    }
+
+    peer.on("open", () => {
+        for (let i = 0; i < MP_PUB_SLOTS; i++) {
+            const hostId = MP_PUB_PREFIX + i;
+            const conn = peer.connect(hostId);
+
+            conn.on("open", () => conn.send({ type: "info?" }));
+
+            conn.on("data", msg => {
+                if (msg && msg.type === "info") {
+                    found.push({ hostId: hostId, name: msg.name, players: msg.players, max: msg.max, inGame: msg.inGame });
+                    conn.close();
+                    done();
+                }
+            });
+        }
+    });
+
+    // Für jede nicht existierende Lobby meldet PeerJS "peer-unavailable"
+    peer.on("error", err => {
+        if (err.type === "peer-unavailable") done();
+        else finalize();
+    });
+
+    // Sicherheitsnetz: nach 6 Sekunden auf jeden Fall Ergebnis anzeigen
+    setTimeout(finalize, 6000);
+}
+
+function mpRenderLobbyList(list) {
+    if (list.length === 0) {
+        elLobbyList.innerHTML = '<div class="lobby-entry">😴 Keine öffentlichen Lobbys gefunden. Mach doch selber eine auf!</div>';
+        return;
+    }
+
+    elLobbyList.innerHTML = "";
+    for (const l of list) {
+        const row = document.createElement("div");
+        row.className = "lobby-entry";
+
+        const info = document.createElement("span");
+        info.innerText = "🎰 " + l.name + " — " + l.players + "/" + l.max;
+        row.appendChild(info);
+
+        if (l.inGame) {
+            const badge = document.createElement("span");
+            badge.className = "badge";
+            badge.innerText = "▶ Runde läuft";
+            row.appendChild(badge);
+        } else if (l.players >= l.max) {
+            const badge = document.createElement("span");
+            badge.className = "badge";
+            badge.innerText = "Voll";
+            row.appendChild(badge);
+        } else {
+            const btn = document.createElement("button");
+            btn.className = "join-btn";
+            btn.innerText = "Beitreten";
+            btn.addEventListener("click", () => {
+                mpJoin(l.hostId, msg => { elBrowserStatus.innerText = msg; });
+            });
+            row.appendChild(btn);
+        }
+
+        elLobbyList.appendChild(row);
+    }
+}
+
+// ---------- Lobby-Screen ----------
+
+const elSetDuration = document.getElementById("setDuration");
+const elSetStartMoney = document.getElementById("setStartMoney");
+const elSetEasy = document.getElementById("setEasy");
+
+function mpApplySettingsToUI() {
+    elSetDuration.value = String(mpSettings.duration);
+    elSetStartMoney.value = String(mpSettings.startMoney);
+    elSetEasy.checked = !!mpSettings.easy;
+}
+
+function mpOnSettingChanged() {
+    if (mpRole !== "host") return;
+    mpSettings.duration = parseInt(elSetDuration.value);
+    mpSettings.startMoney = parseInt(elSetStartMoney.value);
+    mpSettings.easy = elSetEasy.checked;
+    mpBroadcastLobby();
+}
+
+elSetDuration.addEventListener("change", mpOnSettingChanged);
+elSetStartMoney.addEventListener("change", mpOnSettingChanged);
+elSetEasy.addEventListener("change", mpOnSettingChanged);
+
+function mpShowLobby() {
+    const isHost = mpRole === "host";
+
+    document.getElementById("lobbyTitle").innerText =
+        mpSettings.isPublic ? "🌍 Öffentliche Lobby" : "🔒 Private Lobby";
+
+    const codeWrap = document.getElementById("lobbyCodeWrap");
+    codeWrap.hidden = !mpLobbyCode;
+    if (mpLobbyCode) document.getElementById("lobbyCodeBox").innerText = mpLobbyCode;
+
+    elSetDuration.disabled = !isHost;
+    elSetStartMoney.disabled = !isHost;
+    elSetEasy.disabled = !isHost;
+    mpApplySettingsToUI();
+
+    document.getElementById("btnStartGame").hidden = !isHost;
+    document.getElementById("lobbyHint").innerText =
+        isHost ? "" : "Warte bis der Host das Spiel startet…";
+
+    showScreen("screenLobby");
+}
+
+function mpRenderLobby(players) {
+    const myId = mpRole === "host" ? "host" : (mpPeer ? mpPeer.id : null);
+
+    elLobbyPlayers.innerHTML = "";
+
+    const head = document.createElement("div");
+    head.className = "player-row";
+    head.innerText = "👥 Spieler (" + players.length + "/" + MP_MAX_PLAYERS + ")";
+    head.style.color = "#aaa";
+    elLobbyPlayers.appendChild(head);
+
+    for (const p of players) {
+        const row = document.createElement("div");
+        row.className = "player-row" + (p.id === myId ? " me" : "");
+        row.innerText = (p.host ? "👑 " : "🎮 ") + p.name + (p.id === myId ? " (Du)" : "");
+        elLobbyPlayers.appendChild(row);
+    }
+}
+
+document.getElementById("btnCopyCode").addEventListener("click", () => {
+    if (!mpLobbyCode) return;
+    navigator.clipboard.writeText(mpLobbyCode).then(() => {
+        document.getElementById("btnCopyCode").innerText = "✅ Kopiert!";
+        setTimeout(() => {
+            document.getElementById("btnCopyCode").innerText = "📋 Code kopieren";
+        }, 1500);
+    });
+});
+
+document.getElementById("btnLeaveLobby").addEventListener("click", () => {
+    if (mpRole === "host" && mpPlayers.length > 1) {
+        if (!confirm("Wenn du gehst, wird die Lobby für alle geschlossen. Sicher?")) return;
+    }
+    mpLeaveLobby();
+});
+
+// ---------- Runde starten & spielen ----------
+
+document.getElementById("btnStartGame").addEventListener("click", () => {
+    if (mpRole !== "host" || mpGame.active) return;
+
+    mpBroadcast({ type: "start", settings: mpSettings });
+    mpStartRound();
+
+    // Der Host ist die Zeit-Autorität: Er beendet die Runde für alle.
+    mpGame.endTimeout = setTimeout(() => {
+        mpBroadcast({ type: "timeup" });
+        mpLocalTimeUp();
+
+        // Kurze Gnadenfrist, damit letzte Geld-Updates noch ankommen,
+        // dann Endstand an alle schicken.
+        mpGame.rankTimeout = setTimeout(() => {
+            const ranking = mpPlayers
+                .map(p => ({ id: p.id, name: p.name, money: p.money }))
+                .sort((a, b) => b.money - a.money);
+            mpBroadcast({ type: "gameover", ranking: ranking });
+            mpShowResults(ranking);
+        }, 3000);
+    }, mpSettings.duration * 1000);
+});
+
+function mpStartRound() {
+    mpGame.active = true;
+    mpGame.ended = false;
+    mpGame.endTime = Date.now() + mpSettings.duration * 1000;
+
+    // Alle spielen mit den gleichen Regeln
+    easyMode = !!mpSettings.easy;
+    money = mpSettings.startMoney;
+    if (mpRole === "host") {
+        for (const p of mpPlayers) p.money = mpSettings.startMoney;
+    }
+
+    document.getElementById("bet").value = 1;
+    document.getElementById("spinCount").value = 1;
+    statusBox.className = "status win";
+    statusBox.innerText = "🚦 Los geht's! Wer am Ende am meisten hat, gewinnt!";
+
+    document.body.classList.add("mp-active");
+    document.getElementById("mpSidebar").hidden = false;
+    showScreen("screenGame");
+
+    updateMoney();
+    if (mpRole === "host") mpBroadcastScores();
+
+    clearInterval(mpGame.timerInt);
+    mpGame.timerInt = setInterval(mpTickTimer, 250);
+    mpTickTimer();
+}
+
+function mpTickTimer() {
+    const left = Math.max(0, mpGame.endTime - Date.now());
+    const totalSec = Math.ceil(left / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+
+    elMpTimer.innerText = m + ":" + String(s).padStart(2, "0");
+    elMpTimer.classList.toggle("time-low", totalSec <= 30 && totalSec > 0);
+
+    // Lokal keine neuen Spins mehr zulassen, sobald die Zeit rum ist.
+    // Das offizielle Ende ("timeup") kommt vom Host.
+    if (left <= 0 && !mpGame.ended) {
+        mpGame.ended = true;
+    }
+}
+
+function mpLocalTimeUp() {
+    mpGame.ended = true;
+    clearInterval(mpGame.timerInt);
+    elMpTimer.innerText = "0:00";
+    elMpTimer.classList.remove("time-low");
+
+    statusBox.className = "status";
+    statusBox.innerText = "⏱ Zeit abgelaufen! Warte auf das Ergebnis…";
+
+    // Endgültigen Kontostand melden
+    mpReportMoney();
+}
+
+function mpReportMoney() {
+    if (mpRole === "host") {
+        const me = mpPlayers.find(p => p.conn === null);
+        if (me) {
+            me.money = money;
+            mpBroadcastScores();
+        }
+    } else if (mpHostConn && mpHostConn.open) {
+        mpHostConn.send({ type: mpGame.ended ? "final" : "money", value: money });
+    }
+}
+
+// ---------- Scoreboard ----------
+
+function mpRenderScores(scores) {
+    const myId = mpRole === "host" ? "host" : (mpPeer ? mpPeer.id : null);
+    const sorted = scores.slice().sort((a, b) => b.money - a.money);
+    const medals = ["🥇", "🥈", "🥉"];
+
+    elMpScores.innerHTML = "";
+    sorted.forEach((p, i) => {
+        const row = document.createElement("div");
+        row.className = "score-row" + (p.id === myId ? " self" : "");
+
+        const name = document.createElement("span");
+        name.className = "score-name";
+        name.innerText = (medals[i] || (i + 1) + ".") + " " + p.name + (p.id === myId ? " (Du)" : "");
+
+        const val = document.createElement("span");
+        val.className = "score-money";
+        val.innerText = p.money.toFixed(2) + "$";
+
+        row.appendChild(name);
+        row.appendChild(val);
+        elMpScores.appendChild(row);
+    });
+}
+
+document.getElementById("btnMpLeave").addEventListener("click", () => {
+    if (!confirm("Runde wirklich verlassen?")) return;
+    mpLeaveLobby();
+});
+
+// ---------- Ergebnis ----------
+
+function mpShowResults(ranking) {
+    mpGame.active = false;
+    mpGame.ended = false;
+    clearInterval(mpGame.timerInt);
+    clearTimeout(mpGame.endTimeout);
+    clearTimeout(mpGame.rankTimeout);
+
+    const myId = mpRole === "host" ? "host" : (mpPeer ? mpPeer.id : null);
+    const winnerBox = document.getElementById("resultWinner");
+
+    if (ranking.length === 0) {
+        winnerBox.innerText = "🤷 Niemand mehr da…";
+    } else {
+        const top = ranking[0].money;
+        const winners = ranking.filter(p => p.money === top);
+        if (winners.length > 1) {
+            winnerBox.innerText = "🤝 Unentschieden: " + winners.map(p => p.name).join(", ") + " (" + top.toFixed(2) + "$)";
+        } else {
+            winnerBox.innerText = "🏆 " + winners[0].name + " gewinnt mit " + top.toFixed(2) + "$!";
+        }
+    }
+
+    const medals = ["🥇", "🥈", "🥉"];
+    const list = document.getElementById("resultList");
+    list.innerHTML = "";
+    ranking.forEach((p, i) => {
+        const row = document.createElement("div");
+        row.className = "result-row" + (p.id === myId ? " me" : "");
+
+        const name = document.createElement("span");
+        name.innerText = (medals[i] || (i + 1) + ".") + " " + p.name + (p.id === myId ? " (Du)" : "");
+
+        const val = document.createElement("span");
+        val.innerText = p.money.toFixed(2) + "$";
+
+        row.appendChild(name);
+        row.appendChild(val);
+        list.appendChild(row);
+    });
+
+    showScreen("screenResults");
+}
+
+document.getElementById("btnBackToLobby").addEventListener("click", () => {
+    if (!mpRole) { showScreen("screenMenu"); return; }
+    mpShowLobby();
+    if (mpRole === "host") mpBroadcastLobby();
+});
+
+document.getElementById("btnResultsLeave").addEventListener("click", mpLeaveLobby);
+
+// ---------- Verlassen & Aufräumen ----------
+
+function mpCleanup() {
+    mpLeaving = true;
+
+    clearInterval(mpGame.timerInt);
+    clearTimeout(mpGame.endTimeout);
+    clearTimeout(mpGame.rankTimeout);
+    mpGame.active = false;
+    mpGame.ended = false;
+
+    if (mpPeer) {
+        try { mpPeer.destroy(); } catch (e) {}
+    }
+    mpPeer = null;
+    mpHostConn = null;
+    mpRole = null;
+    mpPlayers = [];
+    mpLobbyCode = null;
+    mpBusy = false;
+
+    document.body.classList.remove("mp-active");
+    document.getElementById("mpSidebar").hidden = true;
+
+    // Easy Mode zurücksetzen (könnte durch die Lobby-Einstellung an sein)
+    easyMode = false;
+    const btnEasy = document.getElementById("btnEasy");
+    btnEasy.classList.remove("easy-active");
+    btnEasy.innerText = "easy mode";
+
+    // Solo-Geld aus dem Save wiederherstellen
+    const sm = localStorage.getItem("money");
+    money = sm !== null ? parseFloat(sm) : 10;
+    updateMoney();
+
+    mpLeaving = false;
+}
+
+function mpLeaveLobby() {
+    mpCleanup();
+    showScreen("screenMenu");
+    setMenuStatus("");
+}
+
+// Beim Laden: Hauptmenü anzeigen
+showScreen("screenMenu");
 </script>
 
 </body>
