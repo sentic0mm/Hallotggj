@@ -552,19 +552,123 @@ body.mp-active .save-buttons {
     color: #00ff66;
 }
 
+/* ---------- Login / Account ---------- */
+
+#screenLogin input {
+    width: 100%;
+}
+
+.login-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.login-tabs button {
+    flex: 1;
+    padding: 12px;
+    font-size: 18px;
+    background: #222;
+    color: #aaa;
+    border: 1px solid #444;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.login-tabs button.active {
+    background: #06351b;
+    border-color: #00ff66;
+    color: white;
+}
+
+.at-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.at-row .at {
+    font-size: 26px;
+    color: #ffd400;
+}
+
+.pw-hint {
+    color: #ff9955;
+    font-size: 14px;
+    margin-top: 8px;
+    text-align: left;
+}
+
+#accountBox {
+    background: #222;
+    border: 1px solid #444;
+    border-radius: 10px;
+    padding: 12px 15px;
+    margin-bottom: 20px;
+}
+
+#accountInfo {
+    font-size: 18px;
+    margin-bottom: 8px;
+}
+
+#accountInfo .acc-id {
+    color: #aaa;
+    font-size: 14px;
+}
+
+.menu-btn.small {
+    font-size: 15px;
+    padding: 10px 12px;
+    margin: 5px 0;
+}
+
 </style>
 
 </head>
 
 <body>
 
+<!-- =============== LOGIN / REGISTRIEREN =============== -->
+<div id="screenLogin" class="screen" hidden>
+    <h1>🎰 gamblen ist toll</h1>
+
+    <div class="login-tabs">
+        <button id="tabLogin" class="active">🔑 Einloggen</button>
+        <button id="tabRegister">✨ Registrieren</button>
+    </div>
+
+    <label>Dein Name</label>
+    <div class="at-row">
+        <span class="at">@</span>
+        <input id="accName" maxlength="16" placeholder="name">
+    </div>
+
+    <label>Passwort</label>
+    <input id="accPass" type="password" maxlength="64" placeholder="Passwort">
+
+    <div id="regExtra" hidden>
+        <label>Passwort wiederholen</label>
+        <input id="accPass2" type="password" maxlength="64" placeholder="Passwort nochmal">
+        <div class="pw-hint">⚠️ Benutz KEIN Passwort, das du woanders (E-Mail, Google, …) verwendest!</div>
+    </div>
+
+    <button id="btnAccSubmit" class="menu-btn primary">🔑 Einloggen</button>
+    <button id="btnGuest" class="menu-btn">🎭 Als Gast spielen (nur Solo)</button>
+
+    <div id="loginStatus" class="menu-status"></div>
+</div>
+
 <!-- =============== HAUPTMENÜ =============== -->
 <div id="screenMenu" class="screen">
     <h1>🎰 gamblen ist toll</h1>
 
-    <label>Dein Name</label>
-    <div class="name-row">
-        <input id="playerName" maxlength="16" placeholder="Spieler">
+    <div id="accountBox">
+        <div id="accountInfo"></div>
+        <button id="btnGoLogin" class="menu-btn small primary" hidden>🔑 Einloggen / Registrieren</button>
+        <button id="btnChangeRequest" class="menu-btn small" hidden>✉️ Namens- / Passwortänderung beantragen</button>
+        <button id="btnLogout" class="menu-btn small" hidden>🚪 Ausloggen</button>
     </div>
 
     <button id="btnSolo" class="menu-btn primary">🎰 Solo spielen</button>
@@ -1195,7 +1299,7 @@ const elMpTimer = document.getElementById("mpTimer");
 // ---------- Screens umschalten ----------
 
 function showScreen(id) {
-    for (const s of ["screenMenu", "screenBrowser", "screenLobby", "screenResults", "screenGame"]) {
+    for (const s of ["screenLogin", "screenMenu", "screenBrowser", "screenLobby", "screenResults", "screenGame"]) {
         document.getElementById(s).hidden = (s !== id);
     }
 }
@@ -1204,19 +1308,230 @@ function setMenuStatus(text) {
     elMenuStatus.innerText = text || "";
 }
 
-// ---------- Name ----------
+// ---------- Accounts (@Name + Passwort) ----------
+//
+// Ein Account liegt unter /users/<uid> (uid = fortlaufende Nummer).
+// Der Name wird unter /handles/<name> reserviert, damit er einmalig
+// ist. Passwörter werden NUR als SHA-256-Hash gespeichert.
+// Name und Passwort können vom Spiel aus absichtlich NICHT geändert
+// werden – dafür gibt es den Änderungsantrag per E-Mail an den
+// Betreiber, der es nach Prüfung in der Firebase-Konsole anpasst.
+// (Passwort-Reset: Betreiber löscht das Feld "passHash" beim User,
+// danach wird das nächste eingegebene Passwort das neue.)
 
-const nameInput = document.getElementById("playerName");
-nameInput.value = localStorage.getItem("playerName") || "";
+const MP_SUPPORT_MAIL = "sentic0mm.support@gmail.com";
+
+let account = null; // { uid, handle }
+try { account = JSON.parse(localStorage.getItem("account") || "null"); } catch (e) {}
+
+let accMode = "login"; // "login" | "register"
+
+const elLoginStatus = document.getElementById("loginStatus");
+const elAccName = document.getElementById("accName");
+const elAccPass = document.getElementById("accPass");
+const elAccPass2 = document.getElementById("accPass2");
+
+function accStatus(text) {
+    elLoginStatus.innerText = text || "";
+}
+
+function accSetMode(mode) {
+    accMode = mode;
+    document.getElementById("tabLogin").classList.toggle("active", mode === "login");
+    document.getElementById("tabRegister").classList.toggle("active", mode === "register");
+    document.getElementById("regExtra").hidden = (mode !== "register");
+    document.getElementById("btnAccSubmit").innerText =
+        mode === "login" ? "🔑 Einloggen" : "✨ Account erstellen";
+    accStatus("");
+}
+
+document.getElementById("tabLogin").addEventListener("click", () => accSetMode("login"));
+document.getElementById("tabRegister").addEventListener("click", () => accSetMode("register"));
+
+function accPassHash(uid, pass) {
+    return sha256("slotm:" + uid + ":" + pass);
+}
+
+async function accRegister(handle, pass, pass2) {
+    if (!/^[A-Za-z0-9_]{3,16}$/.test(handle)) {
+        accStatus("❌ Name: 3–16 Zeichen, nur Buchstaben, Zahlen und _");
+        return;
+    }
+    if (pass.length < 4) { accStatus("❌ Passwort: mindestens 4 Zeichen!"); return; }
+    if (pass !== pass2) { accStatus("❌ Die Passwörter stimmen nicht überein!"); return; }
+
+    accStatus("✨ Account wird erstellt…");
+
+    // 1) Fortlaufende User-ID ziehen
+    const counter = await fdb.ref("counters/users").transaction(cur => (cur || 0) + 1);
+    if (!counter.committed) { accStatus("❌ Fehler bei der ID-Vergabe."); return; }
+    const uid = "u" + counter.snapshot.val();
+
+    // 2) Namen reservieren (einmalig!)
+    const lower = handle.toLowerCase();
+    const claim = await fdb.ref("handles/" + lower).transaction(cur => {
+        if (cur !== null) return; // schon vergeben -> abbrechen
+        return uid;
+    });
+    if (!claim.committed || claim.snapshot.val() !== uid) {
+        accStatus("❌ @" + handle + " ist schon vergeben!");
+        return;
+    }
+
+    // 3) Account speichern
+    const passHash = await accPassHash(uid, pass);
+    await fdb.ref("users/" + uid).set({
+        handle: handle,
+        handleLower: lower,
+        passHash: passHash,
+        createdAt: mpNow()
+    });
+
+    accLoggedIn(uid, handle);
+}
+
+async function accLogin(handle, pass) {
+    const lower = handle.toLowerCase();
+    if (!lower) { accStatus("❌ Name eingeben!"); return; }
+
+    accStatus("🔑 Logge ein…");
+
+    const uid = (await fdb.ref("handles/" + lower).get()).val();
+    if (!uid) { accStatus("❌ @" + handle + " ist nicht registriert!"); return; }
+
+    const user = (await fdb.ref("users/" + uid).get()).val();
+    if (!user) { accStatus("❌ Account beschädigt – bitte Support anschreiben."); return; }
+
+    if (!user.passHash) {
+        // Passwort wurde vom Support zurückgesetzt -> das jetzt
+        // eingegebene Passwort wird das neue.
+        if (pass.length < 4) { accStatus("❌ Neues Passwort: mindestens 4 Zeichen!"); return; }
+        const passHash = await accPassHash(uid, pass);
+        await fdb.ref("users/" + uid).update({ passHash: passHash });
+        accLoggedIn(uid, user.handle);
+        setMenuStatus("🔓 Passwort war zurückgesetzt – dein eingegebenes ist jetzt das neue!");
+        return;
+    }
+
+    const passHash = await accPassHash(uid, pass);
+    if (passHash !== user.passHash) { accStatus("❌ Falsches Passwort!"); return; }
+
+    accLoggedIn(uid, user.handle);
+}
+
+function accLoggedIn(uid, handle) {
+    account = { uid: uid, handle: handle };
+    localStorage.setItem("account", JSON.stringify(account));
+    localStorage.removeItem("guestMode");
+    elAccPass.value = "";
+    elAccPass2.value = "";
+    accStatus("");
+    accUpdateMenu();
+    showScreen("screenMenu");
+}
+
+document.getElementById("btnAccSubmit").addEventListener("click", async () => {
+    if (!fdb) { accStatus("❌ Keine Verbindung – Account braucht Internet."); return; }
+    const handle = elAccName.value.trim().replace(/^@/, "");
+    const pass = elAccPass.value;
+    try {
+        if (accMode === "register") await accRegister(handle, pass, elAccPass2.value);
+        else await accLogin(handle, pass);
+    } catch (err) {
+        accStatus(mpFriendlyError(err));
+    }
+});
+
+for (const id of ["accName", "accPass", "accPass2"]) {
+    document.getElementById(id).addEventListener("keydown", e => {
+        if (e.key === "Enter") document.getElementById("btnAccSubmit").click();
+    });
+}
+
+document.getElementById("btnGuest").addEventListener("click", () => {
+    localStorage.setItem("guestMode", "1");
+    accUpdateMenu();
+    showScreen("screenMenu");
+});
+
+document.getElementById("btnGoLogin").addEventListener("click", () => {
+    accStatus("");
+    accSetMode("login");
+    showScreen("screenLogin");
+});
+
+document.getElementById("btnLogout").addEventListener("click", () => {
+    account = null;
+    localStorage.removeItem("account");
+    localStorage.removeItem("guestMode");
+    accUpdateMenu();
+    accSetMode("login");
+    showScreen("screenLogin");
+});
+
+// Öffnet eine vorausgefüllte E-Mail an den Support
+document.getElementById("btnChangeRequest").addEventListener("click", () => {
+    if (!account) return;
+    const subject = encodeURIComponent("Änderungsantrag Account " + account.uid + " (@" + account.handle + ")");
+    const body = encodeURIComponent(
+        "Hallo,\n\n" +
+        "ich beantrage eine Änderung für meinen Slot-Machine-Account:\n\n" +
+        "User-ID: " + account.uid + "\n" +
+        "Aktueller Name: @" + account.handle + "\n\n" +
+        "Was soll geändert werden (Name / Passwort): \n" +
+        "Neuer Wunschname (bei Namensänderung): \n\n" +
+        "Beweis, dass der Account mir gehört: \n\n" +
+        "Danke!"
+    );
+    window.location.href = "mailto:" + MP_SUPPORT_MAIL + "?subject=" + subject + "&body=" + body;
+});
+
+function accUpdateMenu() {
+    const info = document.getElementById("accountInfo");
+
+    if (account) {
+        info.innerHTML = "";
+        const line = document.createElement("div");
+        line.innerText = "👤 @" + account.handle;
+        const idLine = document.createElement("div");
+        idLine.className = "acc-id";
+        idLine.innerText = "User-ID: " + account.uid;
+        info.appendChild(line);
+        info.appendChild(idLine);
+    } else {
+        info.innerText = "🎭 Du spielst als Gast – Multiplayer braucht einen Account.";
+    }
+
+    document.getElementById("btnGoLogin").hidden = !!account;
+    document.getElementById("btnChangeRequest").hidden = !account;
+    document.getElementById("btnLogout").hidden = !account;
+}
+
+// Beim Start prüfen, ob der Account noch existiert (der Support
+// könnte ihn inzwischen umbenannt oder gelöscht haben)
+if (account && fdb) {
+    fdb.ref("users/" + account.uid).get().then(snap => {
+        const user = snap.val();
+        if (!user) {
+            account = null;
+            localStorage.removeItem("account");
+            accUpdateMenu();
+        } else if (user.handle !== account.handle) {
+            account.handle = user.handle;
+            localStorage.setItem("account", JSON.stringify(account));
+            accUpdateMenu();
+        }
+    }).catch(() => {});
+}
 
 function mpGetName() {
-    let n = nameInput.value.trim().slice(0, 16);
-    if (!n) {
-        n = "Spieler" + Math.floor(Math.random() * 1000);
-        nameInput.value = n;
-    }
-    localStorage.setItem("playerName", n);
-    return n;
+    return account ? "@" + account.handle : "Gast";
+}
+
+function mpRequireAccount(statusFn) {
+    if (account) return true;
+    (statusFn || setMenuStatus)("❌ Für Multiplayer musst du eingeloggt sein!");
+    return false;
 }
 
 function mpAvailable() {
@@ -1298,6 +1613,7 @@ document.getElementById("btnCreatePrivate").addEventListener("click", () => {
 function mpCreateLobby(isPublic, statusFn) {
     if (mpRole || mpBusy) return;
     if (!mpAvailable()) return;
+    if (!mpRequireAccount(statusFn)) return;
     mpBusy = true;
     mpMyName = mpGetName();
     mpSettings.isPublic = isPublic;
@@ -1328,7 +1644,7 @@ function mpTryCreate(statusFn, attempt) {
         },
         players: {}
     };
-    lobby.players[mpMyId] = { name: mpMyName, money: 0, host: true, online: true, joinedAt: mpNow() };
+    lobby.players[mpMyId] = { name: mpMyName, uid: account.uid, money: 0, host: true, online: true, joinedAt: mpNow() };
 
     const ref = fdb.ref("lobbies/" + code);
 
@@ -1368,6 +1684,7 @@ document.getElementById("joinCode").addEventListener("keydown", e => {
 function mpJoin(code, statusFn) {
     if (mpRole || mpBusy) return;
     if (!mpAvailable()) return;
+    if (!mpRequireAccount(statusFn)) return;
     mpBusy = true;
     mpMyName = mpGetName();
     mpMyId = mpNewId();
@@ -1384,7 +1701,7 @@ function mpJoin(code, statusFn) {
         if (cur.status !== "waiting") return; // Runde läuft -> abbrechen
         const players = cur.players || {};
         if (Object.keys(players).length >= MP_MAX_PLAYERS) return; // voll
-        players[mpMyId] = { name: mpMyName, money: 0, host: false, online: true, joinedAt: mpNow() };
+        players[mpMyId] = { name: mpMyName, uid: account.uid, money: 0, host: false, online: true, joinedAt: mpNow() };
         cur.players = players;
         return cur;
     }, (err, committed, snap) => {
@@ -1544,7 +1861,7 @@ let mpBrowserRef = null;
 
 document.getElementById("btnPublic").addEventListener("click", () => {
     if (!mpAvailable()) return;
-    mpGetName();
+    if (!mpRequireAccount(setMenuStatus)) return;
     showScreen("screenBrowser");
     mpOpenBrowser();
 });
@@ -2032,9 +2349,16 @@ function mpRestoreSession() {
         return;
     }
 
+    // Erster Besuch (kein Account, kein Gast-Modus) -> Login-Screen
+    if (!account && localStorage.getItem("guestMode") !== "1") {
+        showScreen("screenLogin");
+        return;
+    }
+
     showScreen("screenMenu");
 }
 
+accUpdateMenu();
 mpRestoreSession();
 </script>
 
