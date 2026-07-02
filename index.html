@@ -791,7 +791,7 @@ if (localStorage.getItem("spinReload") === "true") {
 }
 
 // ---------- Multiplayer-Zustand (muss vor updateMoney() existieren) ----------
-const mpGame = { active: false, ended: false, endTime: 0, timerInt: null, endTimeout: null };
+const mpGame = { active: false, ended: false, endTime: 0, timerInt: null, endTimeout: null, resultFallback: null };
 let mpRole = null;        // null | "host" | "client"
 let mpRef = null;         // Firebase-Ref der eigenen Lobby (lobbies/<CODE>)
 let mpMyId = null;        // eigene Spieler-ID innerhalb der Lobby
@@ -1142,8 +1142,10 @@ document.getElementById("btnReset").addEventListener("click", () => {
 // Technik: Firebase Realtime Database (kostenloser Spark-Plan) – kein
 // eigener Server. Eine Lobby ist ein Datensatz unter /lobbies/<CODE>,
 // alle Spieler hören live auf Änderungen (Scoreboard in Echtzeit).
-// onDisconnect räumt automatisch auf: Spieler weg -> Eintrag weg,
-// Host weg -> ganze Lobby weg. Der Host beendet die Runde für alle.
+// Bei Verbindungsabbruch (auch Reload!) wird man nur als "offline"
+// markiert und kann mit derselben Identität wieder einsteigen.
+// Erst wer die Verlassen-Buttons benutzt oder zu lange offline bleibt,
+// fliegt wirklich raus. Der Host beendet die Runde für alle.
 
 const MP_MAX_PLAYERS = 10;
 
@@ -1175,6 +1177,13 @@ try {
 function mpNow() {
     return Date.now() + mpServerOffset;
 }
+
+let mpConnRef = null;       // Listener auf .info/connected (Präsenz)
+let mpHousekeepInt = null;  // Aufräum-Intervall
+let mpResumeMoney = null;   // eigener Kontostand nach einem Reload mitten in der Runde
+
+// Wer länger als das offline ist, fliegt wirklich raus
+const MP_OFFLINE_LIMIT = 60000;
 
 const elMenuStatus = document.getElementById("menuStatus");
 const elBrowserStatus = document.getElementById("browserStatus");
@@ -1229,7 +1238,9 @@ function mpFriendlyError(err) {
 // ---------- Solo ----------
 
 document.getElementById("btnSolo").addEventListener("click", () => {
-    // Solo = das normale Spiel mit Save wie bisher
+    // Solo = das normale Spiel mit Save wie bisher.
+    // Merken, damit ein Reload direkt wieder ins Solo-Spiel führt.
+    sessionStorage.setItem("soloActive", "1");
     const sm = localStorage.getItem("money");
     money = sm !== null ? parseFloat(sm) : 10;
     document.body.classList.remove("mp-active");
@@ -1247,6 +1258,7 @@ document.getElementById("btnGameBack").addEventListener("click", () => {
         return;
     }
     if (mpRole) { mpLeaveLobby(); return; }
+    sessionStorage.removeItem("soloActive");
     showScreen("screenMenu");
     setMenuStatus("");
 });
@@ -1316,7 +1328,7 @@ function mpTryCreate(statusFn, attempt) {
         },
         players: {}
     };
-    lobby.players[mpMyId] = { name: mpMyName, money: 0, host: true, joinedAt: mpNow() };
+    lobby.players[mpMyId] = { name: mpMyName, money: 0, host: true, online: true, joinedAt: mpNow() };
 
     const ref = fdb.ref("lobbies/" + code);
 
@@ -1372,7 +1384,7 @@ function mpJoin(code, statusFn) {
         if (cur.status !== "waiting") return; // Runde läuft -> abbrechen
         const players = cur.players || {};
         if (Object.keys(players).length >= MP_MAX_PLAYERS) return; // voll
-        players[mpMyId] = { name: mpMyName, money: 0, host: false, joinedAt: mpNow() };
+        players[mpMyId] = { name: mpMyName, money: 0, host: false, online: true, joinedAt: mpNow() };
         cur.players = players;
         return cur;
     }, (err, committed, snap) => {
@@ -1409,17 +1421,64 @@ function mpEnterLobby(code, role) {
     mpLobbyData = null;
     mpRef = fdb.ref("lobbies/" + code);
 
-    // Automatisches Aufräumen bei Verbindungsabbruch:
-    // Host weg -> ganze Lobby weg, Spieler weg -> nur sein Eintrag
-    if (role === "host") {
-        mpRef.onDisconnect().remove();
-    } else {
-        mpRef.child("players/" + mpMyId).onDisconnect().remove();
-    }
+    // Session merken, damit ein Reload NICHT aus der Lobby wirft
+    sessionStorage.setItem("mpSession", JSON.stringify({ code: code, id: mpMyId }));
+    sessionStorage.removeItem("soloActive");
+
+    // Präsenz: bei Verbindungsabbruch (auch Reload) wird man nur als
+    // "offline" markiert statt entfernt. Nach jedem (Wieder-)Verbinden
+    // online melden und das onDisconnect neu scharf stellen.
+    const meRef = mpRef.child("players/" + mpMyId);
+    mpConnRef = fdb.ref(".info/connected");
+    mpConnRef.on("value", s => {
+        if (s.val() && mpRef && mpMyId) {
+            meRef.onDisconnect().update({
+                online: false,
+                lastSeen: firebase.database.ServerValue.TIMESTAMP
+            });
+            meRef.update({ online: true });
+        }
+    });
+
+    // Regelmäßig aufräumen (zu lange offline = wirklich weg)
+    clearInterval(mpHousekeepInt);
+    mpHousekeepInt = setInterval(mpHousekeeping, 10000);
 
     mpCloseBrowser();
     mpRef.on("value", snap => mpOnLobbyUpdate(snap.val()));
     mpShowLobby();
+}
+
+// Host: entfernt Spieler, die zu lange offline sind.
+// Clients: lösen die Lobby auf, wenn der Host dauerhaft weg ist.
+function mpHousekeeping() {
+    if (!mpRef || !mpLobbyData || !mpLobbyData.players) return;
+    const now = mpNow();
+    const players = mpLobbyData.players;
+
+    if (mpRole === "host") {
+        for (const id of Object.keys(players)) {
+            if (id === mpMyId) continue;
+            const p = players[id];
+            if (p.online === false && p.lastSeen && now - p.lastSeen > MP_OFFLINE_LIMIT) {
+                mpRef.child("players/" + id).remove().catch(() => {});
+            }
+        }
+    } else {
+        const host = Object.values(players).find(p => p.host);
+        if (!host || (host.online === false && host.lastSeen && now - host.lastSeen > MP_OFFLINE_LIMIT)) {
+            mpRef.remove().catch(() => {});
+        }
+    }
+}
+
+// Verwaiste Lobby? (Host seit über einer Minute offline, oder uralt)
+function mpLobbyIsDead(l) {
+    // Lobbys älter als 6 Stunden sind übrig gebliebener Müll
+    if (l && l.createdAt && mpNow() - l.createdAt > 21600000) return true;
+    const host = Object.values((l && l.players) || {}).find(p => p.host);
+    if (!host) return true;
+    return host.online === false && !!host.lastSeen && (mpNow() - host.lastSeen > MP_OFFLINE_LIMIT);
 }
 
 function mpPlayerList(data) {
@@ -1430,6 +1489,7 @@ function mpPlayerList(data) {
             name: players[id].name || "Spieler",
             money: Number(players[id].money) || 0,
             host: !!players[id].host,
+            online: players[id].online !== false,
             joinedAt: players[id].joinedAt || 0
         }))
         .sort((a, b) => a.joinedAt - b.joinedAt);
@@ -1444,6 +1504,12 @@ function mpOnLobbyUpdate(data) {
     }
 
     mpLobbyData = data;
+
+    // Wurden wir (z.B. nach zu langem Offline-Sein) entfernt?
+    if (mpRole === "client" && data.players && !data.players[mpMyId]) {
+        mpConnectionLost("❌ Du wurdest aus der Lobby entfernt (zu lange offline).");
+        return;
+    }
 
     if (data.settings) {
         mpSettings.duration = data.settings.duration;
@@ -1497,10 +1563,17 @@ function mpOpenBrowser() {
     mpBrowserRef = fdb.ref("lobbies");
     mpBrowserRef.on("value", snap => {
         const all = snap.val() || {};
-        const list = Object.keys(all)
-            .map(code => Object.assign({ code: code }, all[code]))
-            .filter(l => l.public)
-            .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+        const list = [];
+        for (const code of Object.keys(all)) {
+            const l = Object.assign({ code: code }, all[code]);
+            if (mpLobbyIsDead(l)) {
+                // verwaiste Lobby beim Vorbeischauen gleich wegräumen
+                fdb.ref("lobbies/" + code).remove().catch(() => {});
+                continue;
+            }
+            if (l.public) list.push(l);
+        }
+        list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
         mpRenderLobbyList(list);
     }, err => {
         elLobbyList.innerHTML = "";
@@ -1621,7 +1694,10 @@ function mpRenderLobby(players) {
     for (const p of players) {
         const row = document.createElement("div");
         row.className = "player-row" + (p.id === mpMyId ? " me" : "");
-        row.innerText = (p.host ? "👑 " : "🎮 ") + p.name + (p.id === mpMyId ? " (Du)" : "");
+        row.innerText = (p.host ? "👑 " : "🎮 ") + p.name
+            + (p.id === mpMyId ? " (Du)" : "")
+            + (p.online === false ? " 📴" : "");
+        if (p.online === false) row.style.opacity = "0.55";
         elLobbyPlayers.appendChild(row);
     }
 }
@@ -1673,9 +1749,11 @@ function mpStartRound(data) {
     const startedAt = Number(data.startedAt) || mpNow();
     mpGame.endTime = startedAt + mpSettings.duration * 1000;
 
-    // Alle spielen mit den gleichen Regeln
+    // Alle spielen mit den gleichen Regeln.
+    // Nach einem Reload mitten in der Runde: eigenen Kontostand behalten.
     easyMode = !!mpSettings.easy;
-    money = mpSettings.startMoney;
+    money = mpResumeMoney !== null ? mpResumeMoney : mpSettings.startMoney;
+    mpResumeMoney = null;
 
     document.getElementById("bet").value = 1;
     document.getElementById("spinCount").value = 1;
@@ -1726,10 +1804,24 @@ function mpLocalTimeUp() {
 
     // Endgültigen Kontostand melden
     mpReportMoney();
+
+    // Falls der Host verschwunden ist und das Ergebnis nie schreibt,
+    // springt nach kurzer Wartezeit ein anderer Spieler ein.
+    clearTimeout(mpGame.resultFallback);
+    mpGame.resultFallback = setTimeout(() => {
+        if (!mpRef || !mpLobbyData || mpLobbyData.status !== "playing") return;
+        const host = mpPlayerList(mpLobbyData).find(p => p.host);
+        if (!host || !host.online) mpWriteResult();
+    }, 8000 + Math.random() * 4000);
 }
 
 function mpHostFinish() {
-    if (mpRole !== "host" || !mpRef || !mpLobbyData) return;
+    if (mpRole !== "host") return;
+    mpWriteResult();
+}
+
+function mpWriteResult() {
+    if (!mpRef || !mpLobbyData) return;
 
     const ranking = mpPlayerList(mpLobbyData)
         .map(p => ({ id: p.id, name: p.name, money: p.money }))
@@ -1757,7 +1849,10 @@ function mpRenderScores(scores) {
 
         const name = document.createElement("span");
         name.className = "score-name";
-        name.innerText = (medals[i] || (i + 1) + ".") + " " + p.name + (p.id === mpMyId ? " (Du)" : "");
+        name.innerText = (medals[i] || (i + 1) + ".") + " " + p.name
+            + (p.id === mpMyId ? " (Du)" : "")
+            + (p.online === false ? " 📴" : "");
+        if (p.online === false) row.style.opacity = "0.55";
 
         const val = document.createElement("span");
         val.className = "score-money";
@@ -1781,6 +1876,7 @@ function mpShowResults(ranking) {
     mpGame.ended = false;
     clearInterval(mpGame.timerInt);
     clearTimeout(mpGame.endTimeout);
+    clearTimeout(mpGame.resultFallback);
 
     const winnerBox = document.getElementById("resultWinner");
 
@@ -1836,20 +1932,29 @@ function mpCleanup() {
 
     clearInterval(mpGame.timerInt);
     clearTimeout(mpGame.endTimeout);
+    clearTimeout(mpGame.resultFallback);
     mpGame.active = false;
     mpGame.ended = false;
 
     mpCloseBrowser();
 
+    clearInterval(mpHousekeepInt);
+    mpHousekeepInt = null;
+    if (mpConnRef) { mpConnRef.off(); mpConnRef = null; }
+    mpResumeMoney = null;
+
+    // Nur die Buttons führen hierher -> Session vergessen,
+    // damit der nächste Reload wieder im Menü landet.
+    sessionStorage.removeItem("mpSession");
+
     if (mpRef) {
         mpRef.off();
         try {
+            if (mpMyId) mpRef.child("players/" + mpMyId).onDisconnect().cancel();
             if (mpRole === "host") {
                 // Host nimmt die ganze Lobby mit
-                mpRef.onDisconnect().cancel();
                 mpRef.remove();
             } else if (mpMyId) {
-                mpRef.child("players/" + mpMyId).onDisconnect().cancel();
                 mpRef.child("players/" + mpMyId).remove();
             }
         } catch (e) {}
@@ -1885,8 +1990,52 @@ function mpLeaveLobby() {
     setMenuStatus("");
 }
 
-// Beim Laden: Hauptmenü anzeigen
-showScreen("screenMenu");
+// ---------- Beim Laden: Lobby / Solo nach Reload wiederherstellen ----------
+
+function mpRestoreSession() {
+    let sess = null;
+    try { sess = JSON.parse(sessionStorage.getItem("mpSession") || "null"); } catch (e) {}
+
+    if (sess && sess.code && sess.id && fdb) {
+        showScreen("screenMenu");
+        setMenuStatus("🔄 Verbinde wieder mit der Lobby…");
+
+        fdb.ref("lobbies/" + sess.code).get().then(snap => {
+            const data = snap.val();
+            const me = data && data.players ? data.players[sess.id] : null;
+
+            if (me) {
+                // Noch drin -> mit derselben Identität weitermachen
+                mpMyId = sess.id;
+                mpMyName = me.name || mpGetName();
+                if (data.status === "playing") mpResumeMoney = Number(me.money) || 0;
+                setMenuStatus("");
+                mpEnterLobby(sess.code, me.host ? "host" : "client");
+            } else if (data && data.status === "waiting") {
+                // Inzwischen rausgeflogen -> einfach normal neu beitreten
+                sessionStorage.removeItem("mpSession");
+                mpJoin(sess.code, setMenuStatus);
+            } else {
+                sessionStorage.removeItem("mpSession");
+                setMenuStatus(data ? "❌ Du wurdest aus der Lobby entfernt." : "❌ Die Lobby existiert nicht mehr.");
+            }
+        }).catch(() => {
+            sessionStorage.removeItem("mpSession");
+            setMenuStatus("❌ Verbindung fehlgeschlagen.");
+        });
+        return;
+    }
+
+    if (sessionStorage.getItem("soloActive") === "1") {
+        // Solo-Spiel war offen -> direkt wieder rein
+        document.getElementById("btnSolo").click();
+        return;
+    }
+
+    showScreen("screenMenu");
+}
+
+mpRestoreSession();
 </script>
 
 </body>
