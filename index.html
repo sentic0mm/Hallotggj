@@ -585,7 +585,6 @@ body.mp-active .save-buttons {
 
     <div id="lobbyList"></div>
 
-    <button id="btnRescan" class="menu-btn">🔄 Aktualisieren</button>
     <button id="btnCreatePublic" class="menu-btn primary">➕ Öffentliche Lobby erstellen</button>
     <button id="btnBrowserBack" class="menu-btn">← Zurück</button>
 
@@ -710,7 +709,8 @@ body.mp-active .save-buttons {
 
 </div>
 
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
 
 <script>
 // -------von hier-------
@@ -791,15 +791,16 @@ if (localStorage.getItem("spinReload") === "true") {
 }
 
 // ---------- Multiplayer-Zustand (muss vor updateMoney() existieren) ----------
-const mpGame = { active: false, ended: false, endTime: 0, timerInt: null, endTimeout: null, rankTimeout: null };
+const mpGame = { active: false, ended: false, endTime: 0, timerInt: null, endTimeout: null };
 let mpRole = null;        // null | "host" | "client"
-let mpPeer = null;        // eigenes Peer-Objekt
-let mpHostConn = null;    // Client: Verbindung zum Host
-let mpPlayers = [];       // Host: [{id, name, money, conn}] – Host selbst hat conn = null
+let mpRef = null;         // Firebase-Ref der eigenen Lobby (lobbies/<CODE>)
+let mpMyId = null;        // eigene Spieler-ID innerhalb der Lobby
+let mpPrevStatus = null;  // letzter bekannter Lobby-Status
+let mpLobbyData = null;   // letzter Lobby-Snapshot aus der Datenbank
 let mpSettings = { duration: 180, startMoney: 25, easy: false, isPublic: true };
-let mpLobbyCode = null;   // Code bei privater Lobby
+let mpLobbyCode = null;   // 5-stelliger Lobby-Code
 let mpMyName = "Spieler";
-let mpLeaving = false;    // unterdrückt "Verbindung verloren" beim absichtlichen Verlassen
+let mpLeaving = false;    // unterdrückt "Lobby geschlossen" beim absichtlichen Verlassen
 let mpBusy = false;       // verhindert Doppelklick beim Erstellen/Beitreten
 
 function saveMoney() {
@@ -1138,18 +1139,42 @@ document.getElementById("btnReset").addEventListener("click", () => {
 // =========================== MULTIPLAYER ==============================
 // ======================================================================
 //
-// Technik: PeerJS (WebRTC) mit dem kostenlosen öffentlichen PeerJS-Broker.
-// Es gibt KEINEN eigenen Server – der Lobby-Host ist der "Server" der Runde.
-//
-// Öffentliche Lobbys: Hosts belegen feste Peer-IDs (pub-0 bis pub-9).
-// Die Lobby-Suche probiert einfach alle 10 IDs durch und fragt Infos ab.
-// Private Lobbys: zufälliger 5-stelliger Code als Teil der Peer-ID.
+// Technik: Firebase Realtime Database (kostenloser Spark-Plan) – kein
+// eigener Server. Eine Lobby ist ein Datensatz unter /lobbies/<CODE>,
+// alle Spieler hören live auf Änderungen (Scoreboard in Echtzeit).
+// onDisconnect räumt automatisch auf: Spieler weg -> Eintrag weg,
+// Host weg -> ganze Lobby weg. Der Host beendet die Runde für alle.
 
 const MP_MAX_PLAYERS = 10;
-const MP_PUB_SLOTS = 10;
-const MP_ID_BASE = "sentic-slotm-v1-";
-const MP_PUB_PREFIX = MP_ID_BASE + "pub-";
-const MP_PRIV_PREFIX = MP_ID_BASE + "priv-";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyCbHi7LO0fdKVXrysR3nnvoLMKdzbnMPDg",
+    authDomain: "slot-machine-multiplayer.firebaseapp.com",
+    databaseURL: "https://slot-machine-multiplayer-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "slot-machine-multiplayer",
+    storageBucket: "slot-machine-multiplayer.firebasestorage.app",
+    messagingSenderId: "60538407364",
+    appId: "1:60538407364:web:4ae63705e6677829b17c91"
+};
+
+let fdb = null;
+let mpServerOffset = 0; // Differenz lokale Uhr <-> Firebase-Server
+
+try {
+    firebase.initializeApp(firebaseConfig);
+    fdb = firebase.database();
+
+    // Serverzeit-Abgleich, damit der Countdown bei allen synchron läuft
+    fdb.ref(".info/serverTimeOffset").on("value", s => {
+        mpServerOffset = s.val() || 0;
+    });
+} catch (e) {
+    console.warn("Firebase nicht verfügbar:", e);
+}
+
+function mpNow() {
+    return Date.now() + mpServerOffset;
+}
 
 const elMenuStatus = document.getElementById("menuStatus");
 const elBrowserStatus = document.getElementById("browserStatus");
@@ -1186,11 +1211,19 @@ function mpGetName() {
 }
 
 function mpAvailable() {
-    if (typeof Peer === "undefined") {
+    if (!fdb) {
         setMenuStatus("❌ Multiplayer nicht verfügbar (keine Internetverbindung?)");
         return false;
     }
     return true;
+}
+
+function mpFriendlyError(err) {
+    const msg = String((err && err.message) || err);
+    if (msg.toLowerCase().includes("permission")) {
+        return "❌ Kein Zugriff auf die Datenbank – Firebase-Regeln prüfen!";
+    }
+    return "❌ Fehler: " + msg;
 }
 
 // ---------- Solo ----------
@@ -1218,14 +1251,7 @@ document.getElementById("btnGameBack").addEventListener("click", () => {
     setMenuStatus("");
 });
 
-// ---------- Fehlerbehandlung ----------
-
-function mpHandlePeerError(err) {
-    console.warn("PeerJS Fehler:", err.type, err);
-    if (err.type === "network" || err.type === "server-error" || err.type === "socket-error") {
-        mpConnectionLost("❌ Verbindung zum Multiplayer-Server fehlgeschlagen.");
-    }
-}
+// ---------- Verbindung verloren / Lobby zu ----------
 
 function mpConnectionLost(reason) {
     const wasActive = mpRole !== null;
@@ -1245,159 +1271,71 @@ function mpNewCode() {
     return c;
 }
 
+function mpNewId() {
+    return "p" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
 document.getElementById("btnCreatePublic").addEventListener("click", () => {
-    if (mpRole || mpBusy) return;
-    if (!mpAvailable()) { showScreen("screenMenu"); return; }
-    mpBusy = true;
-    mpMyName = mpGetName();
-    mpSettings.isPublic = true;
-    elBrowserStatus.innerText = "Lobby wird erstellt…";
-    const candidates = [];
-    for (let i = 0; i < MP_PUB_SLOTS; i++) candidates.push(MP_PUB_PREFIX + i);
-    mpTryHostId(candidates, 0, msg => { elBrowserStatus.innerText = msg; });
+    mpCreateLobby(true, msg => { elBrowserStatus.innerText = msg; });
 });
 
 document.getElementById("btnCreatePrivate").addEventListener("click", () => {
+    mpCreateLobby(false, setMenuStatus);
+});
+
+function mpCreateLobby(isPublic, statusFn) {
     if (mpRole || mpBusy) return;
     if (!mpAvailable()) return;
     mpBusy = true;
     mpMyName = mpGetName();
-    mpSettings.isPublic = false;
-    setMenuStatus("Private Lobby wird erstellt…");
-    const candidates = [];
-    for (let i = 0; i < 5; i++) candidates.push(MP_PRIV_PREFIX + mpNewCode());
-    mpTryHostId(candidates, 0, setMenuStatus);
-});
+    mpSettings.isPublic = isPublic;
+    statusFn("Lobby wird erstellt…");
+    mpTryCreate(statusFn, 0);
+}
 
-// Probiert nacheinander Peer-IDs aus, bis eine frei ist.
-function mpTryHostId(candidates, idx, statusFn) {
-    if (idx >= candidates.length) {
+// Probiert zufällige Codes, bis einer frei ist (Kollision quasi unmöglich)
+function mpTryCreate(statusFn, attempt) {
+    if (attempt >= 5) {
         mpBusy = false;
-        statusFn("❌ Keine freie Lobby gefunden. Bitte später nochmal versuchen!");
+        statusFn("❌ Konnte keine Lobby erstellen. Nochmal versuchen!");
         return;
     }
 
-    const id = candidates[idx];
-    const peer = new Peer(id);
-    let settled = false;
+    const code = mpNewCode();
+    mpMyId = mpNewId();
 
-    peer.on("open", () => {
-        if (settled) return;
-        settled = true;
-        mpBecomeHost(peer, id);
-    });
+    const lobby = {
+        name: mpMyName + "s Lobby",
+        public: mpSettings.isPublic,
+        status: "waiting",
+        createdAt: mpNow(),
+        settings: {
+            duration: mpSettings.duration,
+            startMoney: mpSettings.startMoney,
+            easy: !!mpSettings.easy
+        },
+        players: {}
+    };
+    lobby.players[mpMyId] = { name: mpMyName, money: 0, host: true, joinedAt: mpNow() };
 
-    peer.on("error", err => {
-        if (!settled && err.type === "unavailable-id") {
-            settled = true;
-            peer.destroy();
-            mpTryHostId(candidates, idx + 1, statusFn);
-            return;
-        }
-        if (!settled && (err.type === "network" || err.type === "server-error" || err.type === "socket-error")) {
-            settled = true;
-            peer.destroy();
+    const ref = fdb.ref("lobbies/" + code);
+
+    ref.transaction(cur => {
+        if (cur !== null) return; // Code schon belegt -> abbrechen
+        return lobby;
+    }, (err, committed) => {
+        if (err) {
             mpBusy = false;
-            statusFn("❌ Verbindung zum Multiplayer-Server fehlgeschlagen.");
+            statusFn(mpFriendlyError(err));
             return;
         }
-        mpHandlePeerError(err);
-    });
-}
-
-function mpBecomeHost(peer, id) {
-    mpBusy = false;
-    mpRole = "host";
-    mpPeer = peer;
-    mpLobbyCode = mpSettings.isPublic ? null : id.slice(MP_PRIV_PREFIX.length);
-    mpPlayers = [{ id: "host", name: mpMyName, money: 0, conn: null }];
-
-    peer.on("connection", conn => mpHostOnConnection(conn));
-
-    // Bei kurzem Broker-Aussetzer wieder verbinden (bestehende
-    // WebRTC-Verbindungen laufen davon unabhängig weiter).
-    peer.on("disconnected", () => {
-        if (!mpLeaving && mpPeer === peer && !peer.destroyed) peer.reconnect();
-    });
-
-    setMenuStatus("");
-    elBrowserStatus.innerText = "";
-    mpShowLobby();
-    mpBroadcastLobby();
-}
-
-function mpHostOnConnection(conn) {
-    conn.on("data", raw => {
-        const msg = raw || {};
-
-        // Lobby-Suche fragt nur Infos ab
-        if (msg.type === "info?") {
-            conn.send({
-                type: "info",
-                name: mpMyName + "s Lobby",
-                players: mpPlayers.length,
-                max: MP_MAX_PLAYERS,
-                inGame: mpGame.active
-            });
+        if (!committed) {
+            mpTryCreate(statusFn, attempt + 1);
             return;
         }
-
-        if (msg.type === "join") {
-            if (mpGame.active) {
-                conn.send({ type: "reject", reason: "Die Runde läuft schon!" });
-                setTimeout(() => conn.close(), 500);
-                return;
-            }
-            if (mpPlayers.length >= MP_MAX_PLAYERS) {
-                conn.send({ type: "reject", reason: "Lobby ist voll (" + MP_MAX_PLAYERS + "/" + MP_MAX_PLAYERS + ")!" });
-                setTimeout(() => conn.close(), 500);
-                return;
-            }
-            const name = String(msg.name || "Spieler").slice(0, 16);
-            mpPlayers.push({ id: conn.peer, name: name, money: 0, conn: conn });
-            conn.send({ type: "welcome", settings: mpSettings, code: mpLobbyCode, hostName: mpMyName });
-            mpBroadcastLobby();
-            return;
-        }
-
-        if (msg.type === "money" || msg.type === "final") {
-            const p = mpPlayers.find(p => p.conn === conn);
-            if (p) {
-                p.money = Number(msg.value) || 0;
-                if (mpGame.active) mpBroadcastScores();
-            }
-            return;
-        }
+        statusFn("");
+        mpEnterLobby(code, "host");
     });
-
-    conn.on("close", () => {
-        const i = mpPlayers.findIndex(p => p.conn === conn);
-        if (i >= 0) {
-            mpPlayers.splice(i, 1);
-            mpBroadcastLobby();
-            if (mpGame.active) mpBroadcastScores();
-        }
-    });
-
-    conn.on("error", () => {});
-}
-
-function mpBroadcast(msg) {
-    for (const p of mpPlayers) {
-        if (p.conn && p.conn.open) p.conn.send(msg);
-    }
-}
-
-function mpBroadcastLobby() {
-    const list = mpPlayers.map(p => ({ id: p.id, name: p.name, host: p.conn === null }));
-    mpBroadcast({ type: "lobby", players: list, settings: mpSettings });
-    mpRenderLobby(list);
-}
-
-function mpBroadcastScores() {
-    const scores = mpPlayers.map(p => ({ id: p.id, name: p.name, money: p.money }));
-    mpBroadcast({ type: "scores", scores: scores });
-    mpRenderScores(scores);
 }
 
 // ---------- Lobby beitreten (Client) ----------
@@ -1408,175 +1346,173 @@ document.getElementById("btnJoinCode").addEventListener("click", () => {
         setMenuStatus("❌ Der Code hat 5 Zeichen!");
         return;
     }
-    if (!mpAvailable()) return;
-    mpJoin(MP_PRIV_PREFIX + code, setMenuStatus);
+    mpJoin(code, setMenuStatus);
 });
 
 document.getElementById("joinCode").addEventListener("keydown", e => {
     if (e.key === "Enter") document.getElementById("btnJoinCode").click();
 });
 
-function mpJoin(hostId, statusFn) {
+function mpJoin(code, statusFn) {
     if (mpRole || mpBusy) return;
+    if (!mpAvailable()) return;
     mpBusy = true;
     mpMyName = mpGetName();
+    mpMyId = mpNewId();
     statusFn("Trete bei…");
 
-    const peer = new Peer();
-    let joined = false;
-    let failed = false;
+    const ref = fdb.ref("lobbies/" + code);
 
-    const failTimer = setTimeout(() => {
-        if (!joined && !failed) {
-            failed = true;
+    ref.transaction(cur => {
+        // Erster Versuch läuft oft mit leerem Cache (cur === null).
+        // null zurückgeben = "nichts ändern": existiert die Lobby doch,
+        // wiederholt Firebase die Transaktion mit den echten Daten.
+        if (cur === null) return null;
+
+        if (cur.status !== "waiting") return; // Runde läuft -> abbrechen
+        const players = cur.players || {};
+        if (Object.keys(players).length >= MP_MAX_PLAYERS) return; // voll
+        players[mpMyId] = { name: mpMyName, money: 0, host: false, joinedAt: mpNow() };
+        cur.players = players;
+        return cur;
+    }, (err, committed, snap) => {
+        if (err) {
             mpBusy = false;
-            peer.destroy();
-            statusFn("❌ Lobby nicht erreichbar.");
-        }
-    }, 10000);
-
-    peer.on("open", () => {
-        const conn = peer.connect(hostId, { reliable: true });
-
-        conn.on("open", () => {
-            conn.send({ type: "join", name: mpMyName });
-        });
-
-        conn.on("data", raw => {
-            const msg = raw || {};
-
-            if (msg.type === "welcome") {
-                joined = true;
-                clearTimeout(failTimer);
-                mpBusy = false;
-                mpRole = "client";
-                mpPeer = peer;
-                mpHostConn = conn;
-                mpSettings = msg.settings;
-                mpLobbyCode = msg.code;
-                statusFn("");
-                setMenuStatus("");
-                mpShowLobby();
-            }
-            else if (msg.type === "reject") {
-                failed = true;
-                clearTimeout(failTimer);
-                mpBusy = false;
-                statusFn("❌ " + msg.reason);
-                peer.destroy();
-            }
-            else if (msg.type === "lobby") {
-                mpSettings = msg.settings;
-                mpApplySettingsToUI();
-                mpRenderLobby(msg.players);
-            }
-            else if (msg.type === "start") {
-                mpSettings = msg.settings;
-                mpStartRound();
-            }
-            else if (msg.type === "scores") {
-                mpRenderScores(msg.scores);
-            }
-            else if (msg.type === "timeup") {
-                mpLocalTimeUp();
-            }
-            else if (msg.type === "gameover") {
-                mpShowResults(msg.ranking);
-            }
-        });
-
-        conn.on("close", () => {
-            if (joined && !mpLeaving) {
-                mpConnectionLost("❌ Der Host hat die Lobby geschlossen.");
-            }
-        });
-
-        conn.on("error", () => {});
-    });
-
-    peer.on("error", err => {
-        if (err.type === "peer-unavailable") {
-            if (!joined && !failed) {
-                failed = true;
-                clearTimeout(failTimer);
-                mpBusy = false;
-                peer.destroy();
-                statusFn("❌ Lobby nicht gefunden! Code prüfen?");
-            }
+            statusFn(mpFriendlyError(err));
             return;
         }
-        mpHandlePeerError(err);
+
+        const data = snap ? snap.val() : null;
+
+        if (committed && data && data.players && data.players[mpMyId]) {
+            statusFn("");
+            setMenuStatus("");
+            mpEnterLobby(code, "client");
+            return;
+        }
+
+        // Nicht reingekommen -> Grund rausfinden
+        mpBusy = false;
+        if (!data) statusFn("❌ Lobby nicht gefunden! Code prüfen?");
+        else if (data.status !== "waiting") statusFn("❌ Die Runde läuft schon!");
+        else statusFn("❌ Lobby ist voll (" + MP_MAX_PLAYERS + "/" + MP_MAX_PLAYERS + ")!");
     });
 }
 
-// ---------- Öffentliche Lobbys suchen ----------
+// ---------- In der Lobby: Live-Updates ----------
+
+function mpEnterLobby(code, role) {
+    mpBusy = false;
+    mpRole = role;
+    mpLobbyCode = code;
+    mpPrevStatus = null;
+    mpLobbyData = null;
+    mpRef = fdb.ref("lobbies/" + code);
+
+    // Automatisches Aufräumen bei Verbindungsabbruch:
+    // Host weg -> ganze Lobby weg, Spieler weg -> nur sein Eintrag
+    if (role === "host") {
+        mpRef.onDisconnect().remove();
+    } else {
+        mpRef.child("players/" + mpMyId).onDisconnect().remove();
+    }
+
+    mpCloseBrowser();
+    mpRef.on("value", snap => mpOnLobbyUpdate(snap.val()));
+    mpShowLobby();
+}
+
+function mpPlayerList(data) {
+    const players = (data && data.players) || {};
+    return Object.keys(players)
+        .map(id => ({
+            id: id,
+            name: players[id].name || "Spieler",
+            money: Number(players[id].money) || 0,
+            host: !!players[id].host,
+            joinedAt: players[id].joinedAt || 0
+        }))
+        .sort((a, b) => a.joinedAt - b.joinedAt);
+}
+
+function mpOnLobbyUpdate(data) {
+    if (mpLeaving || !mpRef) return;
+
+    if (!data) {
+        mpConnectionLost("❌ Die Lobby wurde geschlossen.");
+        return;
+    }
+
+    mpLobbyData = data;
+
+    if (data.settings) {
+        mpSettings.duration = data.settings.duration;
+        mpSettings.startMoney = data.settings.startMoney;
+        mpSettings.easy = !!data.settings.easy;
+    }
+    mpSettings.isPublic = !!data.public;
+
+    const players = mpPlayerList(data);
+
+    if (data.status === "waiting") {
+        mpApplySettingsToUI();
+        mpRenderLobby(players);
+    }
+    else if (data.status === "playing") {
+        if (mpPrevStatus !== "playing") mpStartRound(data);
+        mpRenderScores(players);
+    }
+    else if (data.status === "finished") {
+        mpRenderScores(players);
+        if (mpPrevStatus !== "finished" && data.result && data.result.ranking) {
+            mpShowResults(data.result.ranking);
+        }
+    }
+
+    mpPrevStatus = data.status;
+}
+
+// ---------- Öffentliche Lobbys (Live-Liste) ----------
+
+let mpBrowserRef = null;
 
 document.getElementById("btnPublic").addEventListener("click", () => {
     if (!mpAvailable()) return;
     mpGetName();
     showScreen("screenBrowser");
-    mpScanLobbies();
+    mpOpenBrowser();
 });
 
-document.getElementById("btnRescan").addEventListener("click", mpScanLobbies);
-
 document.getElementById("btnBrowserBack").addEventListener("click", () => {
+    mpCloseBrowser();
     showScreen("screenMenu");
     setMenuStatus("");
 });
 
-let mpScanning = false;
-
-function mpScanLobbies() {
-    if (mpScanning || typeof Peer === "undefined") return;
-    mpScanning = true;
-
+function mpOpenBrowser() {
+    mpCloseBrowser();
     elBrowserStatus.innerText = "";
     elLobbyList.innerHTML = '<div class="lobby-entry">🔍 Suche Lobbys…</div>';
 
-    const peer = new Peer();
-    const found = [];
-    let pending = MP_PUB_SLOTS;
-    let finished = false;
-
-    function done() {
-        pending--;
-        if (pending <= 0) finalize();
-    }
-
-    function finalize() {
-        if (finished) return;
-        finished = true;
-        mpScanning = false;
-        peer.destroy();
-        mpRenderLobbyList(found);
-    }
-
-    peer.on("open", () => {
-        for (let i = 0; i < MP_PUB_SLOTS; i++) {
-            const hostId = MP_PUB_PREFIX + i;
-            const conn = peer.connect(hostId);
-
-            conn.on("open", () => conn.send({ type: "info?" }));
-
-            conn.on("data", msg => {
-                if (msg && msg.type === "info") {
-                    found.push({ hostId: hostId, name: msg.name, players: msg.players, max: msg.max, inGame: msg.inGame });
-                    conn.close();
-                    done();
-                }
-            });
-        }
+    mpBrowserRef = fdb.ref("lobbies");
+    mpBrowserRef.on("value", snap => {
+        const all = snap.val() || {};
+        const list = Object.keys(all)
+            .map(code => Object.assign({ code: code }, all[code]))
+            .filter(l => l.public)
+            .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+        mpRenderLobbyList(list);
+    }, err => {
+        elLobbyList.innerHTML = "";
+        elBrowserStatus.innerText = mpFriendlyError(err);
     });
+}
 
-    // Für jede nicht existierende Lobby meldet PeerJS "peer-unavailable"
-    peer.on("error", err => {
-        if (err.type === "peer-unavailable") done();
-        else finalize();
-    });
-
-    // Sicherheitsnetz: nach 6 Sekunden auf jeden Fall Ergebnis anzeigen
-    setTimeout(finalize, 6000);
+function mpCloseBrowser() {
+    if (mpBrowserRef) {
+        mpBrowserRef.off();
+        mpBrowserRef = null;
+    }
 }
 
 function mpRenderLobbyList(list) {
@@ -1587,19 +1523,20 @@ function mpRenderLobbyList(list) {
 
     elLobbyList.innerHTML = "";
     for (const l of list) {
+        const count = l.players ? Object.keys(l.players).length : 0;
         const row = document.createElement("div");
         row.className = "lobby-entry";
 
         const info = document.createElement("span");
-        info.innerText = "🎰 " + l.name + " — " + l.players + "/" + l.max;
+        info.innerText = "🎰 " + (l.name || "Lobby") + " — " + count + "/" + MP_MAX_PLAYERS;
         row.appendChild(info);
 
-        if (l.inGame) {
+        if (l.status !== "waiting") {
             const badge = document.createElement("span");
             badge.className = "badge";
             badge.innerText = "▶ Runde läuft";
             row.appendChild(badge);
-        } else if (l.players >= l.max) {
+        } else if (count >= MP_MAX_PLAYERS) {
             const badge = document.createElement("span");
             badge.className = "badge";
             badge.innerText = "Voll";
@@ -1609,7 +1546,7 @@ function mpRenderLobbyList(list) {
             btn.className = "join-btn";
             btn.innerText = "Beitreten";
             btn.addEventListener("click", () => {
-                mpJoin(l.hostId, msg => { elBrowserStatus.innerText = msg; });
+                mpJoin(l.code, msg => { elBrowserStatus.innerText = msg; });
             });
             row.appendChild(btn);
         }
@@ -1631,11 +1568,17 @@ function mpApplySettingsToUI() {
 }
 
 function mpOnSettingChanged() {
-    if (mpRole !== "host") return;
+    if (mpRole !== "host" || !mpRef) return;
     mpSettings.duration = parseInt(elSetDuration.value);
     mpSettings.startMoney = parseInt(elSetStartMoney.value);
     mpSettings.easy = elSetEasy.checked;
-    mpBroadcastLobby();
+    mpRef.child("settings").set({
+        duration: mpSettings.duration,
+        startMoney: mpSettings.startMoney,
+        easy: mpSettings.easy
+    }).catch(err => {
+        document.getElementById("lobbyHint").innerText = mpFriendlyError(err);
+    });
 }
 
 elSetDuration.addEventListener("change", mpOnSettingChanged);
@@ -1661,12 +1604,12 @@ function mpShowLobby() {
     document.getElementById("lobbyHint").innerText =
         isHost ? "" : "Warte bis der Host das Spiel startet…";
 
+    if (mpLobbyData) mpRenderLobby(mpPlayerList(mpLobbyData));
+
     showScreen("screenLobby");
 }
 
 function mpRenderLobby(players) {
-    const myId = mpRole === "host" ? "host" : (mpPeer ? mpPeer.id : null);
-
     elLobbyPlayers.innerHTML = "";
 
     const head = document.createElement("div");
@@ -1677,8 +1620,8 @@ function mpRenderLobby(players) {
 
     for (const p of players) {
         const row = document.createElement("div");
-        row.className = "player-row" + (p.id === myId ? " me" : "");
-        row.innerText = (p.host ? "👑 " : "🎮 ") + p.name + (p.id === myId ? " (Du)" : "");
+        row.className = "player-row" + (p.id === mpMyId ? " me" : "");
+        row.innerText = (p.host ? "👑 " : "🎮 ") + p.name + (p.id === mpMyId ? " (Du)" : "");
         elLobbyPlayers.appendChild(row);
     }
 }
@@ -1694,7 +1637,8 @@ document.getElementById("btnCopyCode").addEventListener("click", () => {
 });
 
 document.getElementById("btnLeaveLobby").addEventListener("click", () => {
-    if (mpRole === "host" && mpPlayers.length > 1) {
+    const count = mpLobbyData && mpLobbyData.players ? Object.keys(mpLobbyData.players).length : 1;
+    if (mpRole === "host" && count > 1) {
         if (!confirm("Wenn du gehst, wird die Lobby für alle geschlossen. Sicher?")) return;
     }
     mpLeaveLobby();
@@ -1703,39 +1647,35 @@ document.getElementById("btnLeaveLobby").addEventListener("click", () => {
 // ---------- Runde starten & spielen ----------
 
 document.getElementById("btnStartGame").addEventListener("click", () => {
-    if (mpRole !== "host" || mpGame.active) return;
+    if (mpRole !== "host" || !mpRef || mpGame.active) return;
 
-    mpBroadcast({ type: "start", settings: mpSettings });
-    mpStartRound();
+    const updates = {
+        status: "playing",
+        startedAt: firebase.database.ServerValue.TIMESTAMP,
+        result: null
+    };
 
-    // Der Host ist die Zeit-Autorität: Er beendet die Runde für alle.
-    mpGame.endTimeout = setTimeout(() => {
-        mpBroadcast({ type: "timeup" });
-        mpLocalTimeUp();
+    // Alle Spieler bekommen das Startgeld
+    const players = (mpLobbyData && mpLobbyData.players) || {};
+    for (const id of Object.keys(players)) {
+        updates["players/" + id + "/money"] = mpSettings.startMoney;
+    }
 
-        // Kurze Gnadenfrist, damit letzte Geld-Updates noch ankommen,
-        // dann Endstand an alle schicken.
-        mpGame.rankTimeout = setTimeout(() => {
-            const ranking = mpPlayers
-                .map(p => ({ id: p.id, name: p.name, money: p.money }))
-                .sort((a, b) => b.money - a.money);
-            mpBroadcast({ type: "gameover", ranking: ranking });
-            mpShowResults(ranking);
-        }, 3000);
-    }, mpSettings.duration * 1000);
+    mpRef.update(updates).catch(err => {
+        document.getElementById("lobbyHint").innerText = mpFriendlyError(err);
+    });
 });
 
-function mpStartRound() {
+function mpStartRound(data) {
     mpGame.active = true;
     mpGame.ended = false;
-    mpGame.endTime = Date.now() + mpSettings.duration * 1000;
+
+    const startedAt = Number(data.startedAt) || mpNow();
+    mpGame.endTime = startedAt + mpSettings.duration * 1000;
 
     // Alle spielen mit den gleichen Regeln
     easyMode = !!mpSettings.easy;
     money = mpSettings.startMoney;
-    if (mpRole === "host") {
-        for (const p of mpPlayers) p.money = mpSettings.startMoney;
-    }
 
     document.getElementById("bet").value = 1;
     document.getElementById("spinCount").value = 1;
@@ -1747,15 +1687,22 @@ function mpStartRound() {
     showScreen("screenGame");
 
     updateMoney();
-    if (mpRole === "host") mpBroadcastScores();
 
     clearInterval(mpGame.timerInt);
     mpGame.timerInt = setInterval(mpTickTimer, 250);
     mpTickTimer();
+
+    // Der Host beendet die Runde für alle – mit kleiner Gnadenfrist,
+    // damit die letzten Geld-Updates noch ankommen.
+    if (mpRole === "host") {
+        clearTimeout(mpGame.endTimeout);
+        const wait = Math.max(0, mpGame.endTime - mpNow()) + 3000;
+        mpGame.endTimeout = setTimeout(mpHostFinish, wait);
+    }
 }
 
 function mpTickTimer() {
-    const left = Math.max(0, mpGame.endTime - Date.now());
+    const left = Math.max(0, mpGame.endTime - mpNow());
     const totalSec = Math.ceil(left / 1000);
     const m = Math.floor(totalSec / 60);
     const s = totalSec % 60;
@@ -1763,10 +1710,8 @@ function mpTickTimer() {
     elMpTimer.innerText = m + ":" + String(s).padStart(2, "0");
     elMpTimer.classList.toggle("time-low", totalSec <= 30 && totalSec > 0);
 
-    // Lokal keine neuen Spins mehr zulassen, sobald die Zeit rum ist.
-    // Das offizielle Ende ("timeup") kommt vom Host.
     if (left <= 0 && !mpGame.ended) {
-        mpGame.ended = true;
+        mpLocalTimeUp();
     }
 }
 
@@ -1783,33 +1728,36 @@ function mpLocalTimeUp() {
     mpReportMoney();
 }
 
+function mpHostFinish() {
+    if (mpRole !== "host" || !mpRef || !mpLobbyData) return;
+
+    const ranking = mpPlayerList(mpLobbyData)
+        .map(p => ({ id: p.id, name: p.name, money: p.money }))
+        .sort((a, b) => b.money - a.money);
+
+    mpRef.update({ status: "finished", result: { ranking: ranking } }).catch(() => {});
+}
+
 function mpReportMoney() {
-    if (mpRole === "host") {
-        const me = mpPlayers.find(p => p.conn === null);
-        if (me) {
-            me.money = money;
-            mpBroadcastScores();
-        }
-    } else if (mpHostConn && mpHostConn.open) {
-        mpHostConn.send({ type: mpGame.ended ? "final" : "money", value: money });
+    if (mpRef && mpMyId && mpGame.active) {
+        mpRef.child("players/" + mpMyId + "/money").set(money).catch(() => {});
     }
 }
 
 // ---------- Scoreboard ----------
 
 function mpRenderScores(scores) {
-    const myId = mpRole === "host" ? "host" : (mpPeer ? mpPeer.id : null);
     const sorted = scores.slice().sort((a, b) => b.money - a.money);
     const medals = ["🥇", "🥈", "🥉"];
 
     elMpScores.innerHTML = "";
     sorted.forEach((p, i) => {
         const row = document.createElement("div");
-        row.className = "score-row" + (p.id === myId ? " self" : "");
+        row.className = "score-row" + (p.id === mpMyId ? " self" : "");
 
         const name = document.createElement("span");
         name.className = "score-name";
-        name.innerText = (medals[i] || (i + 1) + ".") + " " + p.name + (p.id === myId ? " (Du)" : "");
+        name.innerText = (medals[i] || (i + 1) + ".") + " " + p.name + (p.id === mpMyId ? " (Du)" : "");
 
         const val = document.createElement("span");
         val.className = "score-money";
@@ -1833,13 +1781,12 @@ function mpShowResults(ranking) {
     mpGame.ended = false;
     clearInterval(mpGame.timerInt);
     clearTimeout(mpGame.endTimeout);
-    clearTimeout(mpGame.rankTimeout);
 
-    const myId = mpRole === "host" ? "host" : (mpPeer ? mpPeer.id : null);
     const winnerBox = document.getElementById("resultWinner");
 
-    if (ranking.length === 0) {
+    if (!ranking || ranking.length === 0) {
         winnerBox.innerText = "🤷 Niemand mehr da…";
+        ranking = [];
     } else {
         const top = ranking[0].money;
         const winners = ranking.filter(p => p.money === top);
@@ -1855,10 +1802,10 @@ function mpShowResults(ranking) {
     list.innerHTML = "";
     ranking.forEach((p, i) => {
         const row = document.createElement("div");
-        row.className = "result-row" + (p.id === myId ? " me" : "");
+        row.className = "result-row" + (p.id === mpMyId ? " me" : "");
 
         const name = document.createElement("span");
-        name.innerText = (medals[i] || (i + 1) + ".") + " " + p.name + (p.id === myId ? " (Du)" : "");
+        name.innerText = (medals[i] || (i + 1) + ".") + " " + p.name + (p.id === mpMyId ? " (Du)" : "");
 
         const val = document.createElement("span");
         val.innerText = p.money.toFixed(2) + "$";
@@ -1873,8 +1820,11 @@ function mpShowResults(ranking) {
 
 document.getElementById("btnBackToLobby").addEventListener("click", () => {
     if (!mpRole) { showScreen("screenMenu"); return; }
+    // Host setzt die Lobby auf "wartend" zurück -> Rematch möglich
+    if (mpRole === "host" && mpRef) {
+        mpRef.update({ status: "waiting", result: null }).catch(() => {});
+    }
     mpShowLobby();
-    if (mpRole === "host") mpBroadcastLobby();
 });
 
 document.getElementById("btnResultsLeave").addEventListener("click", mpLeaveLobby);
@@ -1886,18 +1836,30 @@ function mpCleanup() {
 
     clearInterval(mpGame.timerInt);
     clearTimeout(mpGame.endTimeout);
-    clearTimeout(mpGame.rankTimeout);
     mpGame.active = false;
     mpGame.ended = false;
 
-    if (mpPeer) {
-        try { mpPeer.destroy(); } catch (e) {}
+    mpCloseBrowser();
+
+    if (mpRef) {
+        mpRef.off();
+        try {
+            if (mpRole === "host") {
+                // Host nimmt die ganze Lobby mit
+                mpRef.onDisconnect().cancel();
+                mpRef.remove();
+            } else if (mpMyId) {
+                mpRef.child("players/" + mpMyId).onDisconnect().cancel();
+                mpRef.child("players/" + mpMyId).remove();
+            }
+        } catch (e) {}
     }
-    mpPeer = null;
-    mpHostConn = null;
+    mpRef = null;
+    mpMyId = null;
     mpRole = null;
-    mpPlayers = [];
     mpLobbyCode = null;
+    mpLobbyData = null;
+    mpPrevStatus = null;
     mpBusy = false;
 
     document.body.classList.remove("mp-active");
